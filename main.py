@@ -8,8 +8,10 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from pathlib import Path
 import base64
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000"]}})
 
 model : LightFM = joblib.load(Path('models/amazon-book-reviews-no-item-features-model.pkl'))
 bias, components = model.get_item_representations() 
