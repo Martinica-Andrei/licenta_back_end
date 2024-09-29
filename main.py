@@ -56,7 +56,9 @@ def books():
     sql = """select id, title from book_data where title in 
     (select title from book_fts where book_fts match ? limit ?);"""
     df = pd.read_sql(sql, db, params=[f"{title}*", count])
-    return df.to_json(index=True)
+    if len(df) == 0:
+        return {}
+    return df.to_json(orient='records')
 
 
 @app.get("/api/books/recommendations")
@@ -78,7 +80,7 @@ def books_recommendations():
     df = df.reindex(index=indices)
     df = df.reset_index(drop=True)
     df.loc[:, 'image'] = df['title'].apply(get_title_image_base64)
-    return df.to_json()
+    return df.to_json(orient='records')
 
 if __name__ == '__main__':
     app.run(debug=True)
