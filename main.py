@@ -7,6 +7,7 @@ import joblib
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from pathlib import Path
+import base64
 
 app = Flask(__name__)
 
@@ -23,6 +24,16 @@ def get_db():
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
     return db
+
+def get_title_image_base64(title):
+    path = utils.convert_str_to_datasets_amazon_images_path(title)
+    if path.is_file() == False:
+        path = utils.DATASETS_AMAZON_STATIC_IMAGES_PATH / 'no_cover.jpg'
+    with open(path, 'rb') as file:
+        binary_data = file.read()
+        base64_bytes = base64.b64encode(binary_data)
+        base64_string = base64_bytes.decode('utf-8')
+        return base64_string
 
 
 @app.teardown_appcontext
@@ -64,6 +75,7 @@ def books_recommendations():
     df = pd.read_sql(sql, db, params=indices, index_col='id')
     df = df.reindex(index=indices)
     df = df.reset_index(drop=True)
+    df.loc[:, 'image'] = df['title'].apply(get_title_image_base64)
     return df.to_json()
 
 if __name__ == '__main__':
