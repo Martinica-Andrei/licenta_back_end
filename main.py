@@ -5,10 +5,14 @@ import utils
 from lightfm import LightFM
 import joblib
 import numpy as np
+from sklearn.neighbors import NearestNeighbors
 
 app = Flask(__name__)
 
 model : LightFM = joblib.load('models/amazon-book-reviews-no-item-features-model.pkl')
+bias, components = model.get_item_representations() 
+item_representations = np.concatenate([bias.reshape(-1,1), components], axis=1)
+neighbors = NearestNeighbors(n_neighbors=11).fit(item_representations)
 
 DATABASE = 'sqlite.db'
 
@@ -44,20 +48,14 @@ def books():
 def books_recommendations():
     try:
         id = int(request.args.get('id'))
-    except:
+    except: 
         return "Query string id is required."
-    bias, components = model.get_item_representations() 
-    item_representations = np.concatenate([bias.reshape(-1,1), components], axis=1)
     try:
         target_item = item_representations[id]
     except:
         return f"Invalid id : {id}"
-    dist = np.array([np.linalg.norm(x - target_item) for x in item_representations])
-    dist_indices_sorted = dist.argsort()
-    dist_indices_sorted = dist_indices_sorted[dist_indices_sorted != id]
-    
-    count = int(request.args.get('count', 5))
-    indices = dist_indices_sorted[:count].tolist()
+    indices = neighbors.kneighbors(item_representations[id:id+1], return_distance=False)[0, 1:]
+    indices = indices.tolist()
     question_mark_arr = ','.join(['?'] * len(indices))
     sql = f"""select id, title, image, previewlink, infolink from book_data where id in ({question_mark_arr});"""
     db = get_db()
