@@ -6,15 +6,16 @@ from lightfm import LightFM
 import joblib
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
+from pathlib import Path
 
 app = Flask(__name__)
 
-model : LightFM = joblib.load('models/amazon-book-reviews-no-item-features-model.pkl')
+model : LightFM = joblib.load(Path('models/amazon-book-reviews-no-item-features-model.pkl'))
 bias, components = model.get_item_representations() 
 item_representations = np.concatenate([bias.reshape(-1,1), components], axis=1)
-neighbors = NearestNeighbors(n_neighbors=11).fit(item_representations)
+neighbors = NearestNeighbors(n_neighbors=6).fit(item_representations)
 
-DATABASE = 'sqlite.db'
+DATABASE = Path('sqlite.db')
 
 
 def get_db():
@@ -50,11 +51,11 @@ def books_recommendations():
         id = int(request.args.get('id'))
     except: 
         return "Query string id is required."
-    try:
-        target_item = item_representations[id]
-    except:
+    if id < 0 or id >= len(item_representations):
         return f"Invalid id : {id}"
-    indices = neighbors.kneighbors(item_representations[id:id+1], return_distance=False)[0, 1:]
+    target_item = item_representations[id:id+1]
+        
+    indices = neighbors.kneighbors(target_item, return_distance=False)[0, 1:]
     indices = indices.tolist()
     question_mark_arr = ','.join(['?'] * len(indices))
     sql = f"""select id, title, image, previewlink, infolink from book_data where id in ({question_mark_arr});"""
