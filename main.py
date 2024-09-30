@@ -49,15 +49,13 @@ def close_connection(exception):
 def books():
     db = get_db()
     title = request.args.get('title', '')
-    title = utils.escape_fts(title)
+    title = utils.sanitize_fts(title)
     count = int(request.args.get('count', 5))
-    if len(title) < 3 or count <= 0:
-        return {}
+    if count <= 0:
+        return []
     sql = """select id, title from book_data where title in 
     (select title from book_fts where book_fts match ? limit ?);"""
     df = pd.read_sql(sql, db, params=[f"{title}*", count])
-    if len(df) == 0:
-        return {}
     return df.to_json(orient='records')
 
 
@@ -66,12 +64,12 @@ def books_recommendations():
     try:
         id = int(request.args.get('id'))
     except: 
-        return "Query string id is required."
+        return "Query string id is required.", 400
     if id < 0 or id >= len(item_representations):
-        return f"Invalid id : {id}"
+        return f"Invalid id : {id}", 400
     target_item = item_representations[id:id+1]
         
-    indices = neighbors.kneighbors(target_item, return_distance=False)[0, 1:]
+    indices = neighbors.kneighbors(target_item, return_distance=False)[0]
     indices = indices.tolist()
     question_mark_arr = ','.join(['?'] * len(indices))
     sql = f"""select id, title, previewlink, infolink from book_data where id in ({question_mark_arr});"""
