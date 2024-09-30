@@ -50,8 +50,9 @@ def books():
     db = get_db()
     title = request.args.get('title', '')
     title = utils.sanitize_fts(title)
+    print(title)
     count = int(request.args.get('count', 5))
-    if count <= 0:
+    if count <= 0 or len(title) == 0:
         return []
     sql = """select id, title from book_data where title in 
     (select title from book_fts where book_fts match ? limit ?);"""
@@ -64,9 +65,9 @@ def books_recommendations():
     try:
         id = int(request.args.get('id'))
     except: 
-        return "Query string id is required.", 400
+        return {"err" : "Query string id is required."}, 400
     if id < 0 or id >= len(item_representations):
-        return f"Invalid id : {id}", 400
+        return {"err" : f"Invalid id : {id}"}, 400
     target_item = item_representations[id:id+1]
         
     indices = neighbors.kneighbors(target_item, return_distance=False)[0]
