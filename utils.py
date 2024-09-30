@@ -16,3 +16,6 @@ def convert_str_to_datasets_amazon_images_path(x):
     x = x + '.jpg'
     x = DATASETS_AMAZON_IMAGES_PATH / x
     return x
+
+def string_list_to_list(x): 
+    return [item.strip(' \'"') for item in x.strip('[]').split(',')]
