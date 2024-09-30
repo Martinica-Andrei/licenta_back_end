@@ -50,7 +50,6 @@ def books():
     db = get_db()
     title = request.args.get('title', '')
     title = utils.sanitize_fts(title)
-    print(title)
     count = int(request.args.get('count', 5))
     if count <= 0 or len(title) == 0:
         return []
@@ -69,11 +68,10 @@ def books_recommendations():
     if id < 0 or id >= len(item_representations):
         return {"err" : f"Invalid id : {id}"}, 400
     target_item = item_representations[id:id+1]
-        
     indices = neighbors.kneighbors(target_item, return_distance=False)[0]
     indices = indices.tolist()
     question_mark_arr = ','.join(['?'] * len(indices))
-    sql = f"""select id, title, previewlink, infolink from book_data where id in ({question_mark_arr});"""
+    sql = f"""select id, title, description, previewlink, infolink from book_data where id in ({question_mark_arr});"""
     db = get_db()
     df = pd.read_sql(sql, db, params=indices, index_col='id')
     df = df.reindex(index=indices)
