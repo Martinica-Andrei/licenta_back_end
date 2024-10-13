@@ -164,4 +164,3 @@ cython_debug/
 #custom
 datasets
 machine_learning_models
-sqlite.db
