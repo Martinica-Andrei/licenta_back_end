@@ -3,7 +3,7 @@ from hashlib import sha256
 from pathlib import Path
 
 
-def sanitize_fts(x):
+def sanitize_for_text_search(x):
     x = re.sub(r'[^A-Za-z0-9_]', ' ', x)
     x = x.strip()
     return x

@@ -2,9 +2,9 @@ from flask import request, Blueprint
 import pandas as pd
 import utils
 import base64
-from db_connection import get_db
 from load_book_recommendation_models import neighbors, item_representations
 from .blueprint import api_blueprint
+from db_models.book_data import BookData
 
 books_blueprint = Blueprint('books', __name__,
                         url_prefix='/books')
@@ -22,16 +22,19 @@ def get_title_image_base64(title):
 
 @books_blueprint.get("")
 def index():
-    db = get_db()
     title = request.args.get('title', '')
-    title = utils.sanitize_fts(title)
+    title = utils.sanitize_for_text_search(title)
     count = int(request.args.get('count', 5))
     if count <= 0 or len(title) == 0:
         return []
-    sql = """select id, title from book_data where title in 
-    (select title from book_fts where book_fts match ? limit ?);"""
-    df = pd.read_sql(sql, db, params=[f"{title}*", count])
-    return df.to_json(orient='records')
+    t  = BookData.full_text_search(title)
+    print(t)
+    #results = db.session.query().filter().text
+    #print(results)
+    # sql = """select id, title from book_data where title in 
+    # (select title from book_fts where book_fts match ? limit ?);"""
+    # df = pd.read_sql(sql, db, params=[f"{title}*", count])
+    # return df.to_json(orient='records')
 
 
 @books_blueprint.get("/recommendations")

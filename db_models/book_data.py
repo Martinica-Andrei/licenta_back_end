@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Text, Index
-from .base import Base
+from db import Base, db
 
 class BookData(Base):
     __tablename__ = "book_data"
@@ -15,3 +15,10 @@ class BookData(Base):
     __table_args__ = (
         Index('ix_fulltext_title', 'title', mysql_prefix='FULLTEXT'),
     )
+
+    @classmethod
+    def full_text_search(cls, query):
+        results = db.session.query(cls).filter(
+            db.text("MATCH(title) AGAINST(:query IN BOOLEAN MODE)")
+        ).params(query=query).all()
+        return results
