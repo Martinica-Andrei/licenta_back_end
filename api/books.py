@@ -8,6 +8,7 @@ from db_models.book import Book
 from db import db
 from sqlalchemy.orm import load_only
 import json
+from sqlalchemy import text
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
@@ -28,20 +29,25 @@ def get_title_image_base64(title):
 @books_blueprint.get("/search")
 def index():
     title = request.args.get('title', '')
-    title = utils.convert_for_word_search(title)
+    words_str, words_list = utils.convert_for_word_search(title)
     count = int(request.args.get('count', 5))
-    if len(title) == 0 or count <= 0:
+    if len(words_str) == 0 or count <= 0:
         return []
     # results = db.session.query(Book).options(load_only(Book.id, Book.title)).filter(
-    #         db.text("MATCH(title) AGAINST(:query)")
-    #     ).params(query=title).limit(count).all()
-   # subquery = db.session.query(Book).options(load_only(Book.id), Book.title)
-    #for word in 
-    print(title)
-    results = db.session.query(Book).options(load_only(Book.id, Book.title)).filter(
-            db.text("MATCH(title) AGAINST(:query IN BOOLEAN MODE)")
-        ).params(query=title).limit(count).all()
-    results = [{"id": x.id, "title": x.title} for x in results]
+      #      db.text("MATCH(title) AGAINST(:query)")
+       # ).params(query=title_str).limit(count).all()
+    locate_str = ', '.join([f'LOCATE(:pos_{i}, title) AS pos_{i}' for i in range(len(words_list))])
+    pos_names = [f'pos_{i}' for i in range(len(words_list))]
+    query = f"""SELECT id, title FROM
+                (SELECT id, title, LENGTH(title) as len_title, {locate_str} 
+                FROM book WHERE MATCH(title) AGAINST (:title IN BOOLEAN MODE) ORDER BY {', '.join(pos_names)}, 
+                len_title LIMIT :limit) as query 
+            """
+    params = dict(zip(pos_names, words_list))
+    params['title'] = words_str
+    params['limit'] = count
+    results = db.session.execute(text(query), params).fetchall()
+    results = [{"id": x[0], "title": x[1]} for x in results]
     return json.dumps(results)
 
 

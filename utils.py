@@ -7,9 +7,9 @@ def convert_for_word_search(x : str):
     x = re.sub(r'[^A-Za-z0-9_]', ' ', x)
     x = x.strip()
     x = re.split(r'\s+', x)
-    x = [f'+{v}*' for v in x]
-    x = ' '.join(x)
-    return x
+    x_str = [f'+{v}*' for v in x]
+    x_str = ' '.join(x_str)
+    return (x_str, x)
 
 DATASETS_AMAZON_IMAGES_PATH = Path('datasets/amazon/images')
 DATASETS_AMAZON_STATIC_IMAGES_PATH = Path('datasets/amazon/static_images')
