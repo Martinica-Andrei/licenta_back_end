@@ -15,3 +15,6 @@ class Book(Base):
     __table_args__ = (
         Index('ix_fulltext_title', 'title', mysql_prefix='FULLTEXT'),
     )
+
+    def to_dict(self):
+        return {k : v for k, v in self.__dict__.items() if k.startswith('_') == False}

@@ -7,8 +7,8 @@ from .blueprint import api_blueprint
 from db_models.book import Book
 from db import db
 from sqlalchemy.orm import load_only
-import json
 from sqlalchemy import text
+from flask import jsonify
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
@@ -33,9 +33,6 @@ def index():
     count = int(request.args.get('count', 5))
     if len(words_str) == 0 or count <= 0:
         return []
-    # results = db.session.query(Book).options(load_only(Book.id, Book.title)).filter(
-      #      db.text("MATCH(title) AGAINST(:query)")
-       # ).params(query=title_str).limit(count).all()
     locate_str = ', '.join([f'LOCATE(:pos_{i}, title) AS pos_{i}' for i in range(len(words_list))])
     pos_names = [f'pos_{i}' for i in range(len(words_list))]
     query = f"""SELECT id, title FROM
@@ -48,7 +45,7 @@ def index():
     params['limit'] = count
     results = db.session.execute(text(query), params).fetchall()
     results = [{"id": x[0], "title": x[1]} for x in results]
-    return json.dumps(results)
+    return jsonify(results)
 
 
 @books_blueprint.get("/recommendations")
@@ -62,13 +59,13 @@ def books_recommendations():
     target_item = item_representations[id:id+1]
     indices = neighbors.kneighbors(target_item, return_distance=False)[0]
     indices = indices.tolist()
-    question_mark_arr = ','.join(['?'] * len(indices))
-    sql = f"""select id, title, description, previewlink, infolink, authors, categories from book_data where id in ({question_mark_arr});"""
-    db = get_db()
-    df = pd.read_sql(sql, db, params=indices, index_col='id')
+    results = db.session.query(Book).filter(Book.id.in_(indices)).all()
+    print([x.id for x in results])
+    df = pd.DataFrame([x.to_dict() for x in results])
+    df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
     df = df.reset_index(drop=True)
     df.loc[:, 'image'] = df['title'].apply(get_title_image_base64)
     df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
-        '[]').map(utils.string_list_to_list)
+         '[]').map(utils.string_list_to_list)
     return df.to_json(orient='records')
