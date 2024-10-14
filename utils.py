@@ -3,9 +3,12 @@ from hashlib import sha256
 from pathlib import Path
 
 
-def sanitize_for_text_search(x):
+def convert_for_word_search(x : str):
     x = re.sub(r'[^A-Za-z0-9_]', ' ', x)
     x = x.strip()
+    x = re.split(r'\s+', x)
+    x = [f'+{v}*' for v in x]
+    x = ' '.join(x)
     return x
 
 DATASETS_AMAZON_IMAGES_PATH = Path('datasets/amazon/images')

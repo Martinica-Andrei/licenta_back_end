@@ -1,0 +1,11 @@
+1.Create table by executing this in MODELS_DB
+create table NO_STOP_WORDS (value varchar(1));
+
+2.CHANGE OR SET IN /etc/mysql/my.cnf (mysql linux)
+[mysqld]
+innodb_ft_min_token_size=1
+innodb_ft_server_stopword_table=MODELS_DB/NO_STOP_WORDS
+
+3.sudo systemctl restart mysql
+
+4.alembic upgrade head

@@ -1,1 +1,1 @@
-from .book_data import BookData
+from .book import Book

@@ -35,7 +35,7 @@ def upgrade() -> None:
     
     engine = create_engine(database_url)
     with engine.connect() as connection:
-        df[columns].to_sql('book_data', connection, if_exists='append')
+        df[columns].to_sql('book', connection, if_exists='append')
 
 
 def downgrade() -> None:
