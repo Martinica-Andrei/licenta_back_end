@@ -6,7 +6,8 @@ from sqlalchemy import pool
 from alembic import context
 
 from db import Base
-
+# necessary import so base metadata gets updated
+import db_models
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

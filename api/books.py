@@ -7,7 +7,7 @@ from .blueprint import api_blueprint
 from db_models.book import Book
 from db import db
 from sqlalchemy.orm import load_only
-from sqlalchemy import text
+import sqlalchemy as sa
 from flask import jsonify
 
 books_blueprint = Blueprint('books', __name__,
@@ -43,7 +43,7 @@ def index():
     params = dict(zip(pos_names, words_list))
     params['title'] = words_str
     params['limit'] = count
-    results = db.session.execute(text(query), params).fetchall()
+    results = db.session.execute(sa.text(query), params).fetchall()
     results = [{"id": x[0], "title": x[1]} for x in results]
     return jsonify(results)
 
