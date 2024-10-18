@@ -4,6 +4,7 @@ from flask import jsonify
 import re
 import hashlib
 from db_models.user import User
+from db_models.auth_token import AuthToken
 from db import db
 
 auth_blueprint = Blueprint('auth', __name__,
@@ -54,7 +55,7 @@ def login_validation(body):
             return {"days_until_expiration" : "Must be greater than 0!"}
     else:
         body['days_until_expiration'] = 1
-    return True
+    return user
     
 
 @auth_blueprint.post("/register")
@@ -68,14 +69,17 @@ def register():
     user = User(name=body['name'], password=password_hashed)
     db.session.add(user)
     db.session.commit()
-    return ""
+    return {"token" : AuthToken.authenticate(1, user.id)}
     
 
 @auth_blueprint.post("/login")
 def login():
     body = request.get_json()
     body = {k.lower(): v for k, v in body.items()}
-    validation_result = login_validation(body)
-    if validation_result != True:
-        return validation_result
-    days_until_expiration = body['days_until_expiration']
+    #login_validation returns user if valid, else returns dictionary with error
+    user_or_error = login_validation(body)
+    if type(user_or_error) is not User:
+        return user_or_error
+    user = user_or_error
+    AuthToken.remove_expired_tokens_from_user(user.id)
+    return {"token" : AuthToken.authenticate(body['days_until_expiration'], user.id)}
