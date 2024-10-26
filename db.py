@@ -4,7 +4,8 @@ from alembic.config import Config
 from app import app
 
 class Base(DeclarativeBase):
-    pass
+    def to_dict(self):
+        return {k : v for k, v in self.__dict__.items() if k.startswith('_') == False}
 
 db = SQLAlchemy(model_class=Base)
 

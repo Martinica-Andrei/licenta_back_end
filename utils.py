@@ -11,14 +11,10 @@ def convert_for_word_search(x : str):
     x_str = ' '.join(x_str)
     return (x_str, x)
 
-DATASETS_AMAZON_IMAGES_PATH = Path('datasets/amazon/images')
-DATASETS_AMAZON_STATIC_IMAGES_PATH = Path('datasets/amazon/static_images')
-
-def convert_str_to_datasets_amazon_images_path(x):
-    x = sha256(x.encode()).hexdigest()
-    x = x + '.jpg'
-    x = DATASETS_AMAZON_IMAGES_PATH / x
-    return x
+BOOKS_DATA = Path('BOOKS_DATA')
+BOOKS_DATA_MODEL = BOOKS_DATA / 'model.pkl'
+BOOKS_DATA_BOOKS_PROCESSED = BOOKS_DATA / 'books_processed.csv'
+BOOKS_DATA_Y = BOOKS_DATA / 'y.npz'
 
 def string_list_to_list(x): 
     return [item.strip(' \'"') for item in x.strip('[]').split(',')]

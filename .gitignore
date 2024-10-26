@@ -162,5 +162,4 @@ cython_debug/
 #.idea/
 
 #custom
-datasets
-machine_learning_models
+books_data
