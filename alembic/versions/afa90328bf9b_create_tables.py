@@ -35,9 +35,9 @@ def upgrade() -> None:
     op.create_table('book',
     sa.Column('id', sa.Integer(), autoincrement=False, nullable=False),
     sa.Column('title', sa.String(length=1000), nullable=False),
-    sa.Column('description', sa.Text(length=50000), nullable=True),
-    sa.Column('link', sa.String(length=2000), nullable=True),
-    sa.Column('image_link', sa.String(length=2000), nullable=True),
+    sa.Column('description', sa.Text(length=50000), nullable=False),
+    sa.Column('link', sa.String(length=2000), nullable=False),
+    sa.Column('image_link', sa.String(length=2000), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_fulltext_title', 'book', ['title'], unique=False, mysql_prefix='FULLTEXT')

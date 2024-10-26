@@ -7,9 +7,9 @@ class Book(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=False)
     title = Column(String(1_000), nullable=False)
-    description = Column(Text(50_000), nullable=True)
-    link = Column(String(2000), nullable=True)
-    image_link = Column(String(2000), nullable=True)
+    description = Column(Text(50_000), nullable=False)
+    link = Column(String(2000), nullable=False)
+    image_link = Column(String(2000), nullable=False)
 
     authors = relationship('BookAuthors', back_populates='book')
     categories = relationship('BookCategories', back_populates='book')

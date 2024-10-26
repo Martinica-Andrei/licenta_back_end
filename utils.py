@@ -11,7 +11,7 @@ def convert_for_word_search(x : str):
     x_str = ' '.join(x_str)
     return (x_str, x)
 
-BOOKS_DATA = Path('BOOKS_DATA')
+BOOKS_DATA = Path('books_data')
 BOOKS_DATA_MODEL = BOOKS_DATA / 'model.pkl'
 BOOKS_DATA_BOOKS_PROCESSED = BOOKS_DATA / 'books_processed.csv'
 BOOKS_DATA_Y = BOOKS_DATA / 'y.npz'

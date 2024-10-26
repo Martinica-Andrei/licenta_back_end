@@ -46,11 +46,10 @@ def books_recommendations():
     indices = neighbors.kneighbors(target_item, return_distance=False)[0]
     indices = indices.tolist()
     results = db.session.query(Book).filter(Book.id.in_(indices)).all()
-    print([x.id for x in results])
     df = pd.DataFrame([x.to_dict() for x in results])
     df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
     df = df.reset_index(drop=True)
-    df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
-         '[]').map(utils.string_list_to_list)
+    # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
+    #      '[]').map(utils.string_list_to_list)
     return df.to_json(orient='records')
