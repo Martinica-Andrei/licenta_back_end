@@ -7,10 +7,25 @@ from db_models.book import Book
 from db import db
 import sqlalchemy as sa
 from flask import jsonify
+import base64
+from pathlib import Path
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
 api_blueprint.register_blueprint(books_blueprint)
+
+def get_image_base64(filename):
+    if filename is None:
+        return None
+    filepath : Path = utils.BOOKS_DATA_IMAGES / filename
+    if filepath.is_file():
+        with open(filepath ,'rb') as file:
+            binary_data = file.read()
+            base64_bytes = base64.b64encode(binary_data)
+            base64_str = base64_bytes.decode('utf-8')
+            return base64_str
+    else:
+        return None
 
 @books_blueprint.get("/search")
 def index():
@@ -50,6 +65,8 @@ def books_recommendations():
     df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
     df = df.reset_index(drop=True)
+    df.rename(columns={"image_link" : "image"}, inplace=True)
+    df["image"] = df["image"].apply(get_image_base64)
     # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
     #      '[]').map(utils.string_list_to_list)
     return df.to_json(orient='records')

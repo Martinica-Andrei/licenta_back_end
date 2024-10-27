@@ -37,7 +37,7 @@ def upgrade() -> None:
     sa.Column('title', sa.String(length=1000), nullable=False),
     sa.Column('description', sa.Text(length=50000), nullable=False),
     sa.Column('link', sa.String(length=2000), nullable=False),
-    sa.Column('image_link', sa.String(length=2000), nullable=False),
+    sa.Column('image_link', sa.String(length=2000), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_fulltext_title', 'book', ['title'], unique=False, mysql_prefix='FULLTEXT')

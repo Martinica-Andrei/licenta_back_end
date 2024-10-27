@@ -15,6 +15,7 @@ BOOKS_DATA = Path('books_data')
 BOOKS_DATA_MODEL = BOOKS_DATA / 'model.pkl'
 BOOKS_DATA_BOOKS_PROCESSED = BOOKS_DATA / 'books_processed.csv'
 BOOKS_DATA_Y = BOOKS_DATA / 'y.npz'
+BOOKS_DATA_IMAGES = BOOKS_DATA / 'images'
 
 def string_list_to_list(x): 
     return [item.strip(' \'"') for item in x.strip('[]').split(',')]
