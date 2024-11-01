@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from flask import jsonify
 import base64
 from pathlib import Path
+from decorators.login_required import login_required
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
@@ -70,3 +71,9 @@ def books_recommendations():
     # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
     #      '[]').map(utils.string_list_to_list)
     return df.to_json(orient='records')
+
+@books_blueprint.post("/rate")
+@login_required
+def rate_book():
+    print('called')
+    return "test"
