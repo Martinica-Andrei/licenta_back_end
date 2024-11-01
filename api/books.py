@@ -1,4 +1,4 @@
-from flask import request, Blueprint
+from flask import request, Blueprint, g
 import pandas as pd
 import utils
 from load_book_recommendation_model import neighbors, item_representations
@@ -76,4 +76,4 @@ def books_recommendations():
 @login_required
 def rate_book():
     print('called')
-    return "test"
+    return g.user.name

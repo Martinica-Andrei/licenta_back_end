@@ -20,12 +20,16 @@ class AuthToken(Base):
     user = relationship('User')
 
     @staticmethod
+    def hash_token(token):
+        return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+    @staticmethod
     def authenticate(days_till_expiration, user_id):
         creation_date = datetime.now()
         expiration_date = creation_date + timedelta(days=days_till_expiration)
         while True:
             token = secrets.token_hex(32)
-            token_hashed = hashlib.sha256(token.encode('utf-8')).hexdigest()
+            token_hashed = AuthToken.hash_token(token)
             auth_token = AuthToken(token=token_hashed,
                                     creation_date=creation_date,
                                     expiration_date=expiration_date,
