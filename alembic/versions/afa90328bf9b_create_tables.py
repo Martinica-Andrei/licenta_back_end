@@ -59,14 +59,14 @@ def upgrade() -> None:
     sa.UniqueConstraint('token')
     )
     op.create_table('book_authors',
-    sa.Column('id', sa.Integer(), autoincrement=False, nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=500), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('book_categories',
-    sa.Column('id', sa.Integer(), autoincrement=False, nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=500), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),

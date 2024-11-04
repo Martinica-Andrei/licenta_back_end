@@ -4,6 +4,7 @@ import utils
 from load_book_recommendation_model import neighbors, item_representations
 from .blueprint import api_blueprint
 from db_models.book import Book
+from db_models.book_rating import BookRating
 from db import db
 import sqlalchemy as sa
 from flask import jsonify
@@ -27,6 +28,20 @@ def get_image_base64(filename):
             return base64_str
     else:
         return None
+    
+def validate_rate_book(body):
+    if 'book_id' not in body:
+        return {"book_id" : "Book id is required!"}, 400
+    book_id = body['book_id']
+    book = db.session.query(Book.id).filter(Book.id == book_id).first()
+    if book is None:
+        return {"book_id" : f"Book with id {book_id} doesn't exist!"}, 400
+    if 'rating' not in body:
+        return {"rating": "Rating is required!"}, 400
+    body['rating'] = body['rating'].lower()
+    if body['rating'] not in ['like', 'dislike', 'none']:
+        return {"rating": "Rating must have value 'like', 'dislike' or 'none'!"}, 400
+    return True
 
 @books_blueprint.get("/search")
 def index():
@@ -75,5 +90,25 @@ def books_recommendations():
 @books_blueprint.post("/rate")
 @login_required
 def rate_book():
-    print('called')
-    return g.user.name
+    body = request.get_json()
+    body = {k.lower(): v for k, v in body.items()}
+    validation_result = validate_rate_book(body)
+    if validation_result != True:
+        return validation_result
+    book_id = body['book_id']
+    rating = body['rating']
+    book_rating = db.session.query(BookRating).filter(BookRating.book_id == book_id and BookRating.user_id == g.user.id).first()
+    if book_rating is None:
+        if rating != 'none':
+            book_rating = BookRating(book_id = book_id, user_id=g.user.id, rating=rating)
+            db.session.add(book_rating)
+            db.session.commit()
+        return {}
+    if rating != 'none':
+        book_rating.rating = rating
+        db.session.commit()
+        return {}
+    db.session.delete(book_rating)
+    db.session.commit()
+    return {}
+    
