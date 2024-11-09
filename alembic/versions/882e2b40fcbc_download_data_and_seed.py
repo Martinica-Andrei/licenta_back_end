@@ -47,8 +47,7 @@ def upgrade() -> None:
 
     book_df.rename(columns={"url" : "link", "image_url" : "image_link"}, inplace=True)
     book_df.index.name = 'id'
-    config = context.config
-    database_url = config.get_main_option("sqlalchemy.url")
+    database_url = context.config.get_main_option("sqlalchemy.url")
 
     engine = create_engine(database_url)
     with engine.connect() as connection:

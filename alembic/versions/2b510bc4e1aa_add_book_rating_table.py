@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.create_table('book_rating',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('rating', sa.Enum('Like', 'Dislike'), nullable=False),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
