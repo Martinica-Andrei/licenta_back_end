@@ -13,6 +13,7 @@ class Book(Base):
 
     authors = relationship('BookAuthors', back_populates='book')
     categories = relationship('BookCategories', back_populates='book')
+    ratings = relationship('BookRating', back_populates='book')
 
     __table_args__ = (
         Index('ix_fulltext_title', 'title', mysql_prefix='FULLTEXT'),

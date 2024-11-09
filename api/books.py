@@ -97,7 +97,7 @@ def rate_book():
         return validation_result
     book_id = body['book_id']
     rating = body['rating']
-    book_rating = db.session.query(BookRating).filter(BookRating.book_id == book_id and BookRating.user_id == g.user.id).first()
+    book_rating = db.session.query(BookRating).filter(sa.and_(BookRating.book_id == book_id, BookRating.user_id == g.user.id)).first()
     if book_rating is None:
         if rating != 'none':
             book_rating = BookRating(book_id = book_id, user_id=g.user.id, rating=rating)

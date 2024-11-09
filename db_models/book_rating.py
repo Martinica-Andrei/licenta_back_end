@@ -11,6 +11,7 @@ class BookRating(Base):
     rating = Column(Enum("Like", "Dislike"), nullable=False)
 
     user = relationship('User', back_populates='book_ratings')
+    book = relationship('Book', back_populates='ratings')
 
     __table_args__ = (
         UniqueConstraint('book_id', 'user_id', name='unique_book_id_user_id'),
