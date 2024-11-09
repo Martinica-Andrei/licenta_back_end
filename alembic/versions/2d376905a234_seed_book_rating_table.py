@@ -10,8 +10,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 import utils
-from sqlalchemy import create_engine
-from alembic import context
 from scipy.sparse import load_npz
 import numpy as np
 import pandas as pd
@@ -30,11 +28,8 @@ def upgrade() -> None:
     data = np.full_like(r, 'Like', dtype='<U4')
     df = pd.DataFrame({'book_id' : c, 'rating' : data})
 
-    database_url = context.config.get_main_option("sqlalchemy.url")
-
-    engine = create_engine(database_url)
-    with engine.connect() as connection:
-        df.to_sql('book_rating', connection, if_exists='append', index=False)
+    connection = op.get_bind()
+    df.to_sql('book_rating', connection, if_exists='append', index=False)
 
 
 def downgrade() -> None:

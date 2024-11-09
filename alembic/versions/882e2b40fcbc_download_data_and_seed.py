@@ -7,14 +7,11 @@ Create Date: 2024-10-26 15:06:29.580364
 """
 from typing import Sequence, Union
 
-from alembic import context
-
 from alembic import op
 import sqlalchemy as sa
 
 import pandas as pd
 import utils
-from sqlalchemy import create_engine
 from pathlib import Path
 import os
 import kagglehub
@@ -47,11 +44,9 @@ def upgrade() -> None:
 
     book_df.rename(columns={"url" : "link", "image_url" : "image_link"}, inplace=True)
     book_df.index.name = 'id'
-    database_url = context.config.get_main_option("sqlalchemy.url")
 
-    engine = create_engine(database_url)
-    with engine.connect() as connection:
-        book_df.to_sql('book', connection, if_exists='append')
+    connection = op.get_bind()
+    book_df.to_sql('book', connection, if_exists='append')
 
 
 def downgrade() -> None:

@@ -42,7 +42,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_fulltext_title', 'book', ['title'], unique=False, mysql_prefix='FULLTEXT')
     op.create_table('user',
-    sa.Column('id', sa.Integer(), autoincrement=False, nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
     sa.Column('password', sa.String(length=64), nullable=False),
     sa.PrimaryKeyConstraint('id'),
