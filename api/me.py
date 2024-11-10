@@ -9,6 +9,6 @@ api_blueprint.register_blueprint(me_blueprint)
 
 @me_blueprint.get("/")
 @login_required
-def test():
-    json = {"name" : g.user.name, "ratings" : [{'title' : rating.book.title, 'rating' : rating.rating} for rating in g.user.book_ratings]}
+def index():
+    json = {"name" : g.user.name, "ratings" : [{'title' : rating.book.title, 'rating' : rating.rating, 'id' : rating.book_id} for rating in g.user.book_ratings]}
     return jsonify(json)
