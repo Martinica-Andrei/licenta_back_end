@@ -10,11 +10,13 @@ import joblib
 import utils
 from db_models.book import Book
 import pandas as pd
+import threading
 
 models_blueprint = Blueprint('models', __name__,
                             url_prefix='/models')
 api_blueprint.register_blueprint(models_blueprint)
 
+books_train_on_user_lock = threading.Lock()
 
 def add_new_users(model : LightFM, user_id):
 
@@ -44,6 +46,13 @@ def is_user_added(model, user_id):
     nr_users = model.get_user_representations()[0].shape[0]
     return user_id < nr_users
 
+def model_books_train_on_user(y):
+    with books_train_on_user_lock:
+        epochs = 1000
+        for i in range(1, epochs + 1):
+            model.fit_partial(y, epochs=1, num_threads=8)
+            yield f"{i / epochs}\n"
+        joblib.dump(model, utils.BOOKS_DATA_MODEL)
     
 @models_blueprint.post("/books/user_train")
 @login_required
@@ -60,14 +69,7 @@ def books_train_on_user():
     nr_users = model.get_user_representations()[0].shape[0]
 
     y = csr_matrix((ones, (user_id_arr, positive_book_ratings)), shape=(nr_users, nr_books), dtype=int)
-
-    def train_model():
-        epochs = 1000
-        for i in range(1, epochs + 1):
-            model.fit_partial(y, epochs=1, num_threads=8)
-            yield f"{i / epochs}\n"
-    joblib.dump(model, utils.BOOKS_DATA_MODEL)
-    return train_model()
+    return model_books_train_on_user(y)
 
 @models_blueprint.get("/books/user_recommendations")
 @login_required
@@ -93,4 +95,4 @@ def books_recommendations():
     df = df.reindex(index=p)
     df.reset_index(inplace=True)
 
-    return df.to_json(orient='records')
+    return df.to_json(orient='records'), {'Content-Type': 'application/json'}

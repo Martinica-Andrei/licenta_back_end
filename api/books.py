@@ -85,7 +85,7 @@ def books_recommendations():
     df["image"] = df["image"].apply(get_image_base64)
     # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
     #      '[]').map(utils.string_list_to_list)
-    return df.to_json(orient='records')
+    return df.to_json(orient='records'), {'Content-Type': 'application/json'}
 
 @books_blueprint.post("/rate")
 @login_required
