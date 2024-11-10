@@ -42,6 +42,11 @@ def add_new_users(model : LightFM, user_id):
     model.user_bias_gradients = np.concatenate([model.user_bias_gradients, new_user_bias_gradients], axis=0, dtype=np.float32)
     model.user_bias_momentum = np.concatenate([model.user_bias_momentum, zeros_bias], axis=0, dtype=np.float32)
 
+
+def reset_user_gradients(user_id):
+    model.user_embedding_gradients[user_id] = np.ones(model.no_components)
+    model.user_bias_gradients[user_id] = 1
+
 def is_user_added(model, user_id):
     nr_users = model.get_user_representations()[0].shape[0]
     return user_id < nr_users
@@ -49,9 +54,13 @@ def is_user_added(model, user_id):
 def model_books_train_on_user(y):
     with books_train_on_user_lock:
         epochs = 1000
+        previous_percent = 0
         for i in range(1, epochs + 1):
             model.fit_partial(y, epochs=1, num_threads=8)
-            yield f"{i / epochs}\n"
+            percent = i / epochs
+            if percent - previous_percent >= 0.01:
+                previous_percent = percent
+                yield f"{round(percent, 2)}\n"
         joblib.dump(model, utils.BOOKS_DATA_MODEL)
     
 @models_blueprint.post("/books/user_train")
@@ -59,6 +68,7 @@ def model_books_train_on_user(y):
 def books_train_on_user():
     if is_user_added(model, g.user.id) == False:
         add_new_users(model, g.user.id)
+    reset_user_gradients(g.user.id)
     positive_book_ratings = np.array([rating.book_id for rating in g.user.book_ratings if rating.rating == 'Like'])
     if len(positive_book_ratings) < 5:
         return {"err" : "Minimum 5 positive ratings are required for training!"}, 400
@@ -85,14 +95,14 @@ def books_recommendations():
     prediction_indices_sorted = np.argsort(-predictions)
     prediction_indices_sorted = prediction_indices_sorted[np.isin(prediction_indices_sorted, books_not_to_show) == False]
 
-    p = prediction_indices_sorted[:100].tolist()
+    p_indices_sorted = prediction_indices_sorted[:100].tolist()
 
-    books = db.session.query(Book).filter(Book.id.in_(p))
+    books = db.session.query(Book).filter(Book.id.in_(p_indices_sorted))
     books = [{'id' : book.id, 'title' : book.title} for book in books]
-
+    
     df = pd.DataFrame(books)
     df.set_index('id', inplace=True)
-    df = df.reindex(index=p)
+    df = df.reindex(index=p_indices_sorted)
     df.reset_index(inplace=True)
-
+    print(df)
     return df.to_json(orient='records'), {'Content-Type': 'application/json'}
