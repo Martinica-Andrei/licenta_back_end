@@ -109,6 +109,12 @@ def login():
     set_session_token(response, token, days_until_expiration)
     return response
 
+@auth_blueprint.get('/logoff')
+def logoff():
+    response = make_response()
+    response.headers.add('Set-Cookie', 'sessionToken=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=None; Secure; Path=/; Partitioned;')
+    return response
+    
 @auth_blueprint.get('/check_session')
 @login_required
 def check_session():
