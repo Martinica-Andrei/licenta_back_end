@@ -2,7 +2,7 @@ from flask import request, Blueprint, g
 import pandas as pd
 import utils
 from load_book_recommendation_model import neighbors, item_representations
-from .blueprint import api_blueprint
+from .api import api_blueprint
 from db_models.book import Book
 from db_models.book_rating import BookRating
 from db import db

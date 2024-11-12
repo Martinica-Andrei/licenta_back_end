@@ -1,5 +1,5 @@
 from flask import Blueprint, g, jsonify
-from .blueprint import api_blueprint
+from .api import api_blueprint
 from db import db
 from decorators.login_required import login_required
 from lightfm import LightFM
@@ -51,8 +51,19 @@ def is_user_added(model, user_id):
     nr_users = model.get_user_representations()[0].shape[0]
     return user_id < nr_users
 
-def model_books_train_on_user(y):
+def model_books_train_on_user(positive_book_ratings, user_id):
     with books_train_on_user_lock:
+        if is_user_added(model, user_id) == False:
+            add_new_users(model, user_id)
+        reset_user_gradients(user_id)
+
+        ones = np.ones_like(positive_book_ratings)
+        user_id_arr = np.full_like(ones, user_id)
+
+        nr_books = model.get_item_representations()[0].shape[0]
+        nr_users = model.get_user_representations()[0].shape[0]
+        y = csr_matrix((ones, (user_id_arr, positive_book_ratings)), shape=(nr_users, nr_books), dtype=int)
+
         epochs = 1000
         previous_percent = 0
         for i in range(1, epochs + 1):
@@ -66,20 +77,10 @@ def model_books_train_on_user(y):
 @models_blueprint.post("/books/user_train")
 @login_required
 def books_train_on_user():
-    if is_user_added(model, g.user.id) == False:
-        add_new_users(model, g.user.id)
-    reset_user_gradients(g.user.id)
     positive_book_ratings = np.array([rating.book_id for rating in g.user.book_ratings if rating.rating == 'Like'])
     if len(positive_book_ratings) < 5:
         return {"err" : "Minimum 5 positive ratings are required for training!"}, 400
-    ones = np.ones_like(positive_book_ratings)
-    user_id_arr = np.full_like(ones, g.user.id)
-
-    nr_books = model.get_item_representations()[0].shape[0]
-    nr_users = model.get_user_representations()[0].shape[0]
-
-    y = csr_matrix((ones, (user_id_arr, positive_book_ratings)), shape=(nr_users, nr_books), dtype=int)
-    return model_books_train_on_user(y)
+    return model_books_train_on_user(positive_book_ratings, g.user.id)
 
 @models_blueprint.get("/books/user_recommendations")
 @login_required

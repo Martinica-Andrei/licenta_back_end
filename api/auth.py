@@ -1,21 +1,20 @@
-from flask import Blueprint, request, make_response, Response
-from .blueprint import api_blueprint
+from flask import Blueprint, request, session
+from .api import api_blueprint
 from flask import jsonify
 import re
 import hashlib
 from db_models.user import User
-from db_models.auth_token import AuthToken
 from db import db
 from decorators.login_required import login_required
+from app import csrf
+from flask_wtf.csrf import generate_csrf
 
 auth_blueprint = Blueprint('auth', __name__,
                            url_prefix='/auth')
 api_blueprint.register_blueprint(auth_blueprint)
 
-
 def hash_password(password):
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
-
 
 def register_validation(body):
     if 'name' not in body:
@@ -50,30 +49,11 @@ def login_validation(body):
     hashed_password = hash_password(body['password'])
     if user.password != hashed_password:
         return {"password": "Incorrect password!"}, 400
-    if "days_until_expiration" in body:
-        try:
-            body['days_until_expiration'] = int(body['days_until_expiration'])
-        except:
-            return {"days_until_expiration": "Must be int!"}
-        if body['days_until_expiration'] <= 0:
-            return {"days_until_expiration": "Must be greater than 0!"}
-    else:
-        body['days_until_expiration'] = 1
     return user
 
 
-def set_session_token(response: Response, token: str, days_until_expiration: int):
-    response.headers.add('Set-Cookie',
-                         f'sessionToken={token};' +
-                         f'max_age={86400*days_until_expiration};' +
-                         f'HttpOnly;' +
-                         f'SameSite=None;' +
-                         f'Secure;' +
-                         f'Path=/;' +
-                         f'Partitioned;')
-
-
 @auth_blueprint.post("/register")
+@csrf.exempt
 def register():
     body = request.get_json()
     body = {k.lower(): v for k, v in body.items()}
@@ -85,14 +65,12 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    response = make_response()
-    days_until_expiration = 1
-    token = AuthToken.authenticate(days_until_expiration, user.id)
-    set_session_token(response, token, days_until_expiration)
-    return response
+    session['user_id'] = user.id
+    return {'csrf_token' : generate_csrf()}
 
 
 @auth_blueprint.post("/login")
+@csrf.exempt
 def login():
     body = request.get_json()
     body = {k.lower(): v for k, v in body.items()}
@@ -101,21 +79,16 @@ def login():
     if type(user_or_error) is not User:
         return user_or_error
     user = user_or_error
-    AuthToken.remove_expired_tokens_from_user(user.id)
-
-    response = make_response()
-    days_until_expiration = body['days_until_expiration']
-    token = AuthToken.authenticate(days_until_expiration, user.id)
-    set_session_token(response, token, days_until_expiration)
-    return response
+    
+    session['user_id'] = user.id
+    return {'csrf_token' : generate_csrf()}
 
 @auth_blueprint.get('/logoff')
 def logoff():
-    response = make_response()
-    response.headers.add('Set-Cookie', 'sessionToken=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=None; Secure; Path=/; Partitioned;')
-    return response
+    session.clear()
+    return {}
     
-@auth_blueprint.get('/check_session')
+@auth_blueprint.post('/check_session')
 @login_required
 def check_session():
-    return make_response()
+    return {}

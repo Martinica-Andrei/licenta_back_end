@@ -1,5 +1,5 @@
 from flask import Blueprint, g, jsonify
-from .blueprint import api_blueprint
+from .api import api_blueprint
 from db import db
 from decorators.login_required import login_required
 

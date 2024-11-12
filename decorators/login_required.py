@@ -1,17 +1,13 @@
 from functools import wraps
-from flask import request, g
+from flask import session, g
 from db import db
-from db_models.auth_token import AuthToken
+from db_models.user import User
 
 def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if "sessionToken" not in request.cookies:
-            return {"sessionToken" : "Session token is required!"}, 401
-        auth_token = request.cookies['sessionToken']
-        auth_token = db.session.query(AuthToken).filter(AuthToken.token == AuthToken.hash_token(auth_token)).first()
-        if auth_token is None or auth_token.is_expired():
-            return {"sessionToken" : "Invalid session token!"}, 401
-        g.user = auth_token.user
+        if "user_id" not in session:
+            return {"session" : "Session token is required!"}, 401
+        g.user = db.session.query(User).filter(User.id == session['user_id']).first()
         return func(*args, **kwargs)
     return wrapper
