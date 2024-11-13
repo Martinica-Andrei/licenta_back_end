@@ -6,7 +6,7 @@ import hashlib
 from db_models.user import User
 from db import db
 from decorators.login_required import login_required
-from app import csrf
+from csrf import csrf
 from flask_wtf.csrf import generate_csrf
 
 auth_blueprint = Blueprint('auth', __name__,
