@@ -1,7 +1,6 @@
 from flask import Blueprint, g, jsonify
 from .api import api_blueprint
 from db import db
-from decorators.login_required import login_required
 from lightfm import LightFM
 import numpy as np
 from load_book_recommendation_model import model
@@ -11,6 +10,7 @@ import utils
 from db_models.book import Book
 import pandas as pd
 import threading
+from flask_login import login_required, current_user
 
 models_blueprint = Blueprint('models', __name__,
                             url_prefix='/models')
@@ -77,22 +77,22 @@ def model_books_train_on_user(positive_book_ratings, user_id):
 @models_blueprint.post("/books/user_train")
 @login_required
 def books_train_on_user():
-    positive_book_ratings = np.array([rating.book_id for rating in g.user.book_ratings if rating.rating == 'Like'])
+    positive_book_ratings = np.array([rating.book_id for rating in current_user.book_ratings if rating.rating == 'Like'])
     if len(positive_book_ratings) < 5:
         return {"err" : "Minimum 5 positive ratings are required for training!"}, 400
-    return model_books_train_on_user(positive_book_ratings, g.user.id)
+    return model_books_train_on_user(positive_book_ratings, current_user.id)
 
 @models_blueprint.get("/books/user_recommendations")
 @login_required
 def books_recommendations():
-    if is_user_added(model, g.user.id) == False:
+    if is_user_added(model, current_user.id) == False:
         return {"err" : "First train model!"}, 400
-    books_not_to_show = np.array([rating.book_id for rating in g.user.book_ratings])
+    books_not_to_show = np.array([rating.book_id for rating in current_user.book_ratings])
 
     nr_books = model.get_item_representations()[0].shape[0]
     books_indices = np.arange(nr_books)
 
-    predictions = model.predict(g.user.id, books_indices)
+    predictions = model.predict(current_user.id, books_indices)
     prediction_indices_sorted = np.argsort(-predictions)
     prediction_indices_sorted = prediction_indices_sorted[np.isin(prediction_indices_sorted, books_not_to_show) == False]
 
@@ -105,5 +105,4 @@ def books_recommendations():
     df.set_index('id', inplace=True)
     df = df.reindex(index=p_indices_sorted)
     df.reset_index(inplace=True)
-    print(df)
     return df.to_json(orient='records'), {'Content-Type': 'application/json'}

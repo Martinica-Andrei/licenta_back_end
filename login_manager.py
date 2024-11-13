@@ -7,3 +7,6 @@ from db_models.user import User
 def load_user(user_id):
     return db.session.query(User).filter(User.id == user_id).first()
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    return {"session": "Invalid session token!"}, 401

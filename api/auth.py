@@ -5,9 +5,9 @@ import re
 import hashlib
 from db_models.user import User
 from db import db
-from decorators.login_required import login_required
 from csrf import csrf
 from flask_wtf.csrf import generate_csrf
+from flask_login import login_user, logout_user, login_required
 
 auth_blueprint = Blueprint('auth', __name__,
                            url_prefix='/auth')
@@ -65,7 +65,7 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    session['user_id'] = user.id
+    login_user(user)
     return {'csrf_token' : generate_csrf()}
 
 
@@ -79,13 +79,12 @@ def login():
     if type(user_or_error) is not User:
         return user_or_error
     user = user_or_error
-    
-    session['user_id'] = user.id
+    login_user(user)
     return {'csrf_token' : generate_csrf()}
 
 @auth_blueprint.get('/logoff')
 def logoff():
-    session.clear()
+    logout_user()
     return {}
     
 @auth_blueprint.post('/check_session')
