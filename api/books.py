@@ -8,27 +8,11 @@ from db_models.book_rating import BookRating
 from db import db
 import sqlalchemy as sa
 from flask import jsonify
-import base64
-from pathlib import Path
 from flask_login import login_required, current_user
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
 api_blueprint.register_blueprint(books_blueprint)
-
-
-def get_image_base64(filename):
-    if filename is None:
-        return None
-    filepath: Path = utils.BOOKS_DATA_IMAGES / filename
-    if filepath.is_file():
-        with open(filepath, 'rb') as file:
-            binary_data = file.read()
-            base64_bytes = base64.b64encode(binary_data)
-            base64_str = base64_bytes.decode('utf-8')
-            return base64_str
-    else:
-        return None
 
 
 def validate_rate_book(body):
@@ -47,7 +31,7 @@ def validate_rate_book(body):
 
 
 @books_blueprint.get("/search")
-def index():
+def search():
     title = request.args.get('title', '')
     words_str, words_list = utils.convert_for_word_search(title)
     count = int(request.args.get('count', 5))
@@ -82,16 +66,19 @@ def books_recommendations():
     indices = indices.tolist()
     if current_user.is_authenticated:
         query1 = db.session.query(Book).filter(Book.id.in_(indices)).subquery()
-        query2 = db.session.query(BookRating).filter(BookRating.user_id == current_user.id).subquery()
-        results = db.session.query(query1, query2.c.rating).outerjoin(query2, query1.c.id == query2.c.book_id).all()
+        query2 = db.session.query(BookRating).filter(
+            BookRating.user_id == current_user.id).subquery()
+        results = db.session.query(query1, query2.c.rating).outerjoin(
+            query2, query1.c.id == query2.c.book_id).all()
     else:
-        results = db.session.query(Book.__table__.columns).filter(Book.id.in_(indices)).all()
+        results = db.session.query(Book.__table__.columns).filter(
+            Book.id.in_(indices)).all()
     df = pd.DataFrame(results)
     df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
     df = df.reset_index(drop=False)
     df.rename(columns={"image_link": "image"}, inplace=True)
-    df["image"] = df["image"].apply(get_image_base64)
+    df["image"] = df["image"].apply(Book.get_image_base64)
     # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
     #      '[]').map(utils.string_list_to_list)
     return df.to_json(orient='records'), {'Content-Type': 'application/json'}
