@@ -89,7 +89,7 @@ def books_recommendations():
     df = pd.DataFrame(results)
     df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
-    df = df.reset_index(drop=True)
+    df = df.reset_index(drop=False)
     df.rename(columns={"image_link": "image"}, inplace=True)
     df["image"] = df["image"].apply(get_image_base64)
     # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(

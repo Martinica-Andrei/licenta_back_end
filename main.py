@@ -7,8 +7,8 @@ from csrf import csrf
 from login_manager import login_manager
 import logging
 
-logging.basicConfig()
-logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+# logging.basicConfig()
+# logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 if __name__ == '__main__':
     app.register_blueprint(api.api.api_blueprint)
