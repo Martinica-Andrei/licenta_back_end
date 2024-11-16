@@ -132,9 +132,11 @@ def books_recommendations():
 
     p_indices_sorted = prediction_indices_sorted[:100].tolist()
 
-    books = db.session.query(Book.id, Book.title).filter(Book.id.in_(p_indices_sorted))
+    books = db.session.query(Book.id, Book.title, Book.image_link, Book.link).filter(Book.id.in_(p_indices_sorted))
 
     df = pd.DataFrame(books)
+    df.rename(columns={'image_link' : 'image'}, inplace=True)
+    df['image'] = df['image'].apply(Book.get_image_base64)
     df.set_index('id', inplace=True)
     df = df.reindex(index=p_indices_sorted)
     df.reset_index(inplace=True)
