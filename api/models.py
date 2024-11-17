@@ -1,4 +1,4 @@
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, json
 from .api import api_blueprint
 from db import db
 from lightfm import LightFM
@@ -144,7 +144,8 @@ def model_books_train_on_user(positive_book_ratings, user_id):
             positive_book_ratings, 1, 0)
 
         max_percentage = 0
-        precision = 0
+        precision = compute_user_precision(
+            single_user_model, len(positive_book_ratings), y)
         while precision < TARGET_PRECISION:
             single_user_model.fit_partial(y, epochs=10, num_threads=8)
             precision = compute_user_precision(
@@ -153,7 +154,8 @@ def model_books_train_on_user(positive_book_ratings, user_id):
             percentage = min(1, percentage)
             if percentage > max_percentage:
                 max_percentage = percentage
-                yield f"{{percentage : {max_percentage}}}\n"
+                data = {'percentage': max_percentage}
+                yield json.dumps(data) + '\n'
         with books_model_memory_change_lock.gen_wlock():
             transfer_data_from_new_model_to_model(
                 single_user_model, model, user_id)
@@ -176,6 +178,8 @@ def validate_training_status(user_id):
             positive_book_ratings, len(model.get_user_representations()[0]), user_id)
         precision = compute_user_precision(
             model, len(positive_book_ratings), y)
+    if precision < 0.2:
+        return {"must_train": True}
     if precision < TARGET_PRECISION:
         return {"can_train": True}
     else:
@@ -194,7 +198,7 @@ def user_train():
     validation = validate_training_status(current_user.id)
     if 'cannot_train' in validation or validation.get('can_train', True) == False:
         return validation
-    return model_books_train_on_user(g.positive_book_ratings, current_user.id)
+    return model_books_train_on_user(g.positive_book_ratings, current_user.id), {'content_type':'Application/json'}
 
 
 @models_blueprint.get("/books/user_recommendations")
