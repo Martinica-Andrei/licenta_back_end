@@ -1,7 +1,7 @@
 from flask import request, Blueprint
 import pandas as pd
 import utils
-from load_book_recommendation_model import neighbors, item_representations
+from load_book_recommendation_model import neighbors, model_item_representations
 from .api import api_blueprint
 from db_models.book import Book
 from db_models.book_rating import BookRating
@@ -9,6 +9,7 @@ from db import db
 import sqlalchemy as sa
 from flask import jsonify
 from flask_login import login_required, current_user
+from thread_locks import books_model_memory_change_lock
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
@@ -59,10 +60,12 @@ def books_recommendations():
         id = int(request.args.get('id'))
     except:
         return {"err": "Query string id is required."}, 400
-    if id < 0 or id >= len(item_representations):
-        return {"err": f"Invalid id : {id}"}, 400
-    target_item = item_representations[id:id+1]
-    indices = neighbors.kneighbors(target_item, return_distance=False)[0]
+    with books_model_memory_change_lock.gen_rlock():
+        item_representations = model_item_representations()
+        if id < 0 or id >= len(item_representations):
+            return {"err": f"Invalid id : {id}"}, 400
+        target_item = item_representations[id:id+1]
+        indices = neighbors.kneighbors(target_item, return_distance=False)[0]
     indices = indices.tolist()
     if current_user.is_authenticated:
         query1 = db.session.query(Book).filter(Book.id.in_(indices)).subquery()
