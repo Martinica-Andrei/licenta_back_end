@@ -170,7 +170,8 @@ def validate_training_status(user_id):
     positive_book_ratings = [x[0] for x in positive_book_ratings]
     g.positive_book_ratings = positive_book_ratings
     if len(positive_book_ratings) < MINIMUM_POSITIVE_RATINGS:
-        return {"cannot_train": f"Minimum {MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations."}
+        return {"cannot_train": f"Minimum {MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like"+ 
+                f" {MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."}
     with books_model_memory_change_lock.gen_rlock():
         if is_user_added(model, user_id) == False:
             return {"must_train": True}
@@ -220,7 +221,7 @@ def books_recommendations():
 
     p_indices_sorted = prediction_indices_sorted[:100].tolist()
 
-    books = db.session.query(Book.id, Book.title, Book.image_link, Book.link).filter(
+    books = db.session.query(Book.id, Book.title, Book.image_link, Book.link, Book.nr_likes, Book.nr_dislikes).filter(
         Book.id.in_(p_indices_sorted))
 
     df = pd.DataFrame(books)
