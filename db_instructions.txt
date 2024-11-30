@@ -1,6 +1,8 @@
 1.CHANGE OR SET IN /etc/mysql/my.cnf (mysql linux)
+
 [mysqld]
 innodb_ft_min_token_size=1
+log_bin_trust_function_creators = 1
 
 2.sudo systemctl restart mysql
 

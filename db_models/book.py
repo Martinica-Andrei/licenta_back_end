@@ -14,6 +14,8 @@ class Book(Base):
     description = Column(Text(50_000), nullable=False)
     link = Column(String(2000), nullable=False)
     image_link = Column(String(2000), nullable=True)
+    nr_likes = Column(Integer, nullable=False, server_default='0')
+    nr_dislikes = Column(Integer, nullable=False, server_default='0')
 
     authors = relationship('BookAuthors', back_populates='book')
     categories = relationship('BookCategories', back_populates='book')
