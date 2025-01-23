@@ -49,17 +49,30 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
+    op.create_table('author',
+    sa.Column('id', sa.Integer(), autoincrement=False, nullable=False),
+    sa.Column('name', sa.String(length=500), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('category',
+    sa.Column('id', sa.Integer(), autoincrement=False, nullable=False),
+    sa.Column('name', sa.String(length=500), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('book_authors',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=500), nullable=False),
+    sa.Column('author_id', sa.Integer(), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
+    sa.Column('role', sa.String(500), nullable=True),
+    sa.ForeignKeyConstraint(['author_id'], ['author.id'], ),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('book_categories',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=500), nullable=False),
+    sa.Column('category_id', sa.Integer(), nullable=False),
     sa.Column('book_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
     sa.ForeignKeyConstraint(['book_id'], ['book.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -73,4 +86,6 @@ def downgrade() -> None:
     op.drop_table('no_stop_word')
     op.drop_index('ix_fulltext_title', table_name='book', mysql_prefix='FULLTEXT')
     op.drop_table('book')
+    op.drop_table('author')
+    op.drop_table('category')
     # ### end Alembic commands ###

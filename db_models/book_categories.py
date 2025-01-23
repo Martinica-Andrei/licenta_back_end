@@ -6,7 +6,7 @@ class BookCategories(Base):
     __tablename__ = "book_categories"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(500), nullable=False)
+    category_id = Column(Integer(), ForeignKey('category.id'), nullable=False)
     book_id = Column(Integer(), ForeignKey('book.id'), nullable=False)
 
     book = relationship('Book', back_populates='categories')

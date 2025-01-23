@@ -6,7 +6,8 @@ class BookAuthors(Base):
     __tablename__ = "book_authors"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(500), nullable=False)
+    author_id = Column(Integer(), ForeignKey('author.id'), nullable=False)
     book_id = Column(Integer(), ForeignKey('book.id'), nullable=False)
+    role = Column(String(500), nullable=True)
 
     book = relationship('Book', back_populates='authors')
