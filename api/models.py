@@ -160,8 +160,7 @@ def model_books_train_on_user(positive_book_ratings, user_id):
             transfer_data_from_new_model_to_model(
                 single_user_model, model, user_id)
             refit_neighbors()
-
-        joblib.dump(model, utils.BOOKS_DATA_MODEL)
+            joblib.dump(model, utils.BOOKS_DATA_MODEL)
 
 
 def validate_training_status(user_id):

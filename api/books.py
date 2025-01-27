@@ -5,11 +5,15 @@ from load_book_recommendation_model import neighbors, model_item_representations
 from .api import api_blueprint
 from db_models.book import Book
 from db_models.book_rating import BookRating
+from db_models.author import Author
+from db_models.book_authors import BookAuthors
 from db import db
 import sqlalchemy as sa
 from flask import jsonify
 from flask_login import login_required, current_user
 from thread_locks import books_model_memory_change_lock
+from sqlalchemy import func, literal_column
+import numpy as np
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
@@ -66,24 +70,48 @@ def books_recommendations():
             return {"err": f"Invalid id : {id}"}, 400
         target_item = item_representations[id:id+1]
         indices = neighbors.kneighbors(target_item, return_distance=False)[0]
+
     indices = indices.tolist()
+    grp_conc_sep = ' | '
+    ifnull = ' '
+    
     if current_user.is_authenticated:
         query1 = db.session.query(Book).filter(Book.id.in_(indices)).subquery()
         query2 = db.session.query(BookRating).filter(
             BookRating.user_id == current_user.id).subquery()
-        results = db.session.query(query1, query2.c.rating).outerjoin(
-            query2, query1.c.id == query2.c.book_id).all()
+        query3 = db.session.query(query1, query2.c.rating).outerjoin(
+            query2, query1.c.id == query2.c.book_id).subquery()
+        results = db.session.query(query3, Author.name.label('author_name'), BookAuthors.role.label('author_role')).outerjoin(
+            BookAuthors, BookAuthors.book_id == query3.c.id).outerjoin(
+            Author, Author.id == BookAuthors.author_id).all()
     else:
-        results = db.session.query(Book.__table__.columns).filter(
-            Book.id.in_(indices)).all()
+        # query with Book.__table__.columns so it returns named tuples instead of Book objects
+        # it is easy to convert named tuples to DataFrame
+        # unfortunately , there isn't a easier way to add custom separator other than using the syntax below
+        # group concat discards nulls therefore ifnull converts nulls to spaces
+        results = db.session.query(Book.__table__.columns, 
+                                   func.group_concat(func.ifnull(Author.name, ifnull).op(
+                                       'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_names'), 
+                                   func.group_concat(func.ifnull(BookAuthors.role, ifnull).op(
+                                       'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_roles')).filter(
+            Book.id.in_(indices)).join(BookAuthors, BookAuthors.book_id == Book.id).join(
+                Author, Author.id == BookAuthors.author_id).group_by(Book).all()
+        
     df = pd.DataFrame(results)
+
+    df['author_names'] = df['author_names'].apply(lambda x : [v if v != ifnull else np.nan for v in x.split(grp_conc_sep)])
+    df['author_roles'] = df['author_roles'].apply(lambda x : [v if v != ifnull else np.nan for v in x.split(grp_conc_sep)])
+    df['authors'] = df[['author_names', 'author_roles']].apply(lambda x : {name : role for name, role in 
+                                                                          zip(x['author_names'], x['author_roles'])}, axis=1)
+    df.drop(columns=['author_names','author_roles'], inplace=True)
+
     df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
     df = df.reset_index(drop=False)
+
     df.rename(columns={"image_link": "image"}, inplace=True)
     df["image"] = df["image"].apply(Book.get_image_base64)
-    # df.loc[:, ['authors', 'categories']] = df[['authors', 'categories']].fillna(
-    #      '[]').map(utils.string_list_to_list)
+
     return df.to_json(orient='records'), {'Content-Type': 'application/json'}
 
 

@@ -4,7 +4,7 @@ from db import Base
 from pathlib import Path
 import base64
 import utils
-
+import numpy as np
 
 class Book(Base):
     __tablename__ = "book"
@@ -27,7 +27,7 @@ class Book(Base):
 
     @staticmethod
     def get_image_base64(filename):
-        if filename is None:
+        if type(filename) not in [str, Path]:
             return None
         filepath: Path = utils.BOOKS_DATA_IMAGES / filename
         if filepath.is_file():
