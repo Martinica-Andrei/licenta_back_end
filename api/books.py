@@ -7,6 +7,8 @@ from db_models.book import Book
 from db_models.book_rating import BookRating
 from db_models.author import Author
 from db_models.book_authors import BookAuthors
+from db_models.category import Category
+from db_models.book_categories import BookCategories
 from db import db
 import sqlalchemy as sa
 from flask import jsonify
@@ -75,27 +77,35 @@ def books_recommendations():
     grp_conc_sep = ' | '
     ifnull = ' '
     
+    # query with Book.__table__.columns so it returns named tuples instead of Book objects
+    # it is easy to convert named tuples to DataFrame
+    # unfortunately , there isn't a easier way to add custom separator other than using the syntax below
+    # group concat discards nulls therefore ifnull converts nulls to spaces
+    #query fetches book, authors and author roles based on indices
+    query = db.session.query(Book.__table__.columns, 
+                                func.group_concat(func.ifnull(Author.name, ifnull).op(
+                                    'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_names'), 
+                                func.group_concat(func.ifnull(BookAuthors.role, ifnull).op(
+                                    'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_roles')).filter(
+        Book.id.in_(indices)).join(BookAuthors, BookAuthors.book_id == Book.id).join(
+            Author, Author.id == BookAuthors.author_id).group_by(Book).subquery()
+    #query1 adds categories to query
+    query1 = db.session.query(query, 
+                                    func.group_concat(func.ifnull(Category.name, ifnull).op(
+                                    'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('categories')).join(
+                                        BookCategories, BookCategories.book_id == query.c.id).join(
+                                            Category, Category.id == BookCategories.category_id
+                                        ).group_by(query)
+    
     if current_user.is_authenticated:
-        query1 = db.session.query(Book).filter(Book.id.in_(indices)).subquery()
+        query1 = query1.subquery()
+        # add user rating for each book
         query2 = db.session.query(BookRating).filter(
             BookRating.user_id == current_user.id).subquery()
-        query3 = db.session.query(query1, query2.c.rating).outerjoin(
-            query2, query1.c.id == query2.c.book_id).subquery()
-        results = db.session.query(query3, Author.name.label('author_name'), BookAuthors.role.label('author_role')).outerjoin(
-            BookAuthors, BookAuthors.book_id == query3.c.id).outerjoin(
-            Author, Author.id == BookAuthors.author_id).all()
+        results = db.session.query(query1, query2.c.rating).outerjoin(
+            query2, query1.c.id == query2.c.book_id).all()
     else:
-        # query with Book.__table__.columns so it returns named tuples instead of Book objects
-        # it is easy to convert named tuples to DataFrame
-        # unfortunately , there isn't a easier way to add custom separator other than using the syntax below
-        # group concat discards nulls therefore ifnull converts nulls to spaces
-        results = db.session.query(Book.__table__.columns, 
-                                   func.group_concat(func.ifnull(Author.name, ifnull).op(
-                                       'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_names'), 
-                                   func.group_concat(func.ifnull(BookAuthors.role, ifnull).op(
-                                       'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_roles')).filter(
-            Book.id.in_(indices)).join(BookAuthors, BookAuthors.book_id == Book.id).join(
-                Author, Author.id == BookAuthors.author_id).group_by(Book).all()
+        results = query1.all()
         
     df = pd.DataFrame(results)
 
@@ -103,8 +113,10 @@ def books_recommendations():
     df['author_roles'] = df['author_roles'].apply(lambda x : [v if v != ifnull else np.nan for v in x.split(grp_conc_sep)])
     df['authors'] = df[['author_names', 'author_roles']].apply(lambda x : {name : role for name, role in 
                                                                           zip(x['author_names'], x['author_roles'])}, axis=1)
+    
     df.drop(columns=['author_names','author_roles'], inplace=True)
-
+    # str.split takes regex and | needs to be escaped therefore use lambda to split
+    df['categories'] = df['categories'].apply(lambda x : x.split(grp_conc_sep))
     df.set_index('id', inplace=True)
     df = df.reindex(index=indices)
     df = df.reset_index(drop=False)
