@@ -29,8 +29,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
 
-    path = Path(kagglehub.model_download("mrtinicandreimarian/goodreads-with-features/other/default")) / "training_data"
-
+    path = Path(kagglehub.model_download("mrtinicandreimarian/goodreads-with-features/other/default"))
     os.makedirs(utils.BOOKS_DATA, exist_ok=True)
     for file in os.listdir(path):
         shutil.move(path / file, utils.BOOKS_DATA)

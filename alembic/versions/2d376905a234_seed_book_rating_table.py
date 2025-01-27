@@ -26,10 +26,16 @@ def upgrade() -> None:
     y = load_npz(utils.BOOKS_DATA_Y)
     r, c = y.nonzero()
     data = np.full_like(r, 'Like', dtype='<U4')
-    df = pd.DataFrame({'book_id' : c, 'rating' : data})
+    df_positive = pd.DataFrame({'book_id' : c, 'rating' : data})
+
+    negative_ratings = load_npz(utils.BOOKS_DATA_NEGATIVE_RATINGS)
+    r, c = negative_ratings.nonzero()
+    data = np.full_like(r, 'Dislike', dtype='<U7')
+    df_negative = pd.DataFrame({'book_id' : c, 'rating' : data})
 
     connection = op.get_bind()
-    df.to_sql('book_rating', connection, if_exists='append', index=False)
+    df_positive.to_sql('book_rating', connection, if_exists='append', index=False)
+    df_negative.to_sql('book_rating', connection, if_exists='append', index=False)
 
 
 def downgrade() -> None:
