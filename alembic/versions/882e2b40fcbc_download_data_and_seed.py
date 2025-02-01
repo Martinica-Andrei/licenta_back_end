@@ -12,13 +12,10 @@ import sqlalchemy as sa
 
 import pandas as pd
 import utils
-from pathlib import Path
-import os
-import kagglehub
-import shutil
 import numpy as np
 import ast
 from sklearn.preprocessing import LabelEncoder
+from download_books_data import download_books_data
 
 
 # revision identifiers, used by Alembic.
@@ -29,15 +26,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
 
-    path = Path(kagglehub.model_download("mrtinicandreimarian/goodreads-with-features/other/default"))
-    os.makedirs(utils.BOOKS_DATA, exist_ok=True)
-    for file in os.listdir(path):
-        shutil.move(path / file, utils.BOOKS_DATA)
-
-    path = Path(kagglehub.dataset_download("mrtinicandreimarian/book-categories"))
-
-    for file in os.listdir(path):
-        shutil.move(path / file, utils.BOOKS_DATA)
+    download_books_data()
 
     authors = pd.read_csv(utils.BOOKS_AUTHORS).rename(columns={'author_id' : 'id'})
     categories = pd.read_csv(utils.BOOKS_CATEGORIES).rename(columns={'0':'name'})
