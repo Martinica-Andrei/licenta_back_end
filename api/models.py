@@ -14,12 +14,15 @@ from load_book_recommendation_model import (model,
                                             get_length_common_features_items, 
                                             get_length_common_features_users,
                                             set_item_features,
-                                            set_user_features)
+                                            set_user_features,
+                                            user_preprocessing)
 from scipy.sparse import csr_matrix, hstack, vstack, identity
 import joblib
 import utils
 from db_models.book import Book
 from db_models.book_rating import BookRating
+from db_models import LikedCategories
+from db_models import Category
 import pandas as pd
 import threading
 from flask_login import login_required, current_user
@@ -90,8 +93,8 @@ def reset_user_gradients(user_id):
     model.user_bias_gradients[nr_common_features + user_id] = 1
 
 
-def new_model_with_single_user(user_id):
-    user_id += get_length_common_features_users()
+def new_model_with_single_user(user_feature):
+    user_feature = user_feature.nonzero()[1]
     new_model = LightFM()
     new_model.set_params(**model.get_params())
     new_model.item_biases = model.item_biases.copy()
@@ -102,24 +105,24 @@ def new_model_with_single_user(user_id):
     new_model.item_bias_momentum = model.item_bias_momentum.copy()
     new_model.item_embedding_momentum = model.item_embedding_momentum.copy()
 
-    new_model.user_biases = model.user_biases[user_id:user_id + 1].copy()
-    new_model.user_embeddings = model.user_embeddings[user_id:user_id + 1].copy(
+    new_model.user_biases = model.user_biases[user_feature].copy()
+    new_model.user_embeddings = model.user_embeddings[user_feature].copy(
     )
 
-    new_model.user_bias_gradients = model.user_bias_gradients[user_id:user_id + 1].copy(
+    new_model.user_bias_gradients = model.user_bias_gradients[user_feature].copy(
     )
-    new_model.user_embedding_gradients = model.user_embedding_gradients[user_id:user_id + 1].copy(
+    new_model.user_embedding_gradients = model.user_embedding_gradients[user_feature].copy(
     )
-    new_model.user_bias_momentum = model.user_bias_momentum[user_id:user_id + 1].copy(
+    new_model.user_bias_momentum = model.user_bias_momentum[user_feature].copy(
     )
-    new_model.user_embedding_momentum = model.user_embedding_momentum[user_id:user_id + 1].copy(
+    new_model.user_embedding_momentum = model.user_embedding_momentum[user_feature].copy(
     )
 
     return new_model
 
 
-def transfer_data_from_new_model_to_model(new_model, model, user_id):
-    user_id += get_length_common_features_users()
+def transfer_data_from_new_model_to_model(new_model, model, user_feature):
+    user_feature = user_feature.nonzero()[1]
     model.item_biases = new_model.item_biases.copy()
     model.item_embeddings = new_model.item_embeddings.copy()
 
@@ -128,18 +131,26 @@ def transfer_data_from_new_model_to_model(new_model, model, user_id):
     model.item_bias_momentum = new_model.item_bias_momentum.copy()
     model.item_embedding_momentum = new_model.item_embedding_momentum.copy()
 
-    model.user_biases[user_id:user_id + 1] = new_model.user_biases[0:1].copy()
-    model.user_embeddings[user_id:user_id +
-                          1] = new_model.user_embeddings[0:1].copy()
+    model.user_biases[user_feature] = new_model.user_biases.copy()
+    model.user_embeddings[user_feature] = new_model.user_embeddings.copy()
 
-    model.user_bias_gradients[user_id:user_id +
-                              1] = new_model.user_bias_gradients[0:1].copy()
-    model.user_embedding_gradients[user_id:user_id +
-                                   1] = new_model.user_embedding_gradients[0:1].copy()
-    model.user_bias_momentum[user_id:user_id +
-                             1] = new_model.user_bias_momentum[0:1].copy()
-    model.user_embedding_momentum[user_id:user_id +
-                                  1] = new_model.user_embedding_momentum[0:1].copy()
+    model.user_bias_gradients[user_feature] = new_model.user_bias_gradients.copy()
+    model.user_embedding_gradients[user_feature] = new_model.user_embedding_gradients.copy()
+    model.user_bias_momentum[user_feature] = new_model.user_bias_momentum.copy()
+    model.user_embedding_momentum[user_feature] = new_model.user_embedding_momentum[0:1].copy()
+    
+def get_user_categories(user_id):
+    categories = db.session.query(LikedCategories.category_id, Category.name).filter(LikedCategories.user_id == user_id).join(
+        Category, Category.id == LikedCategories.category_id).all()
+    categories = pd.Series([[x.name for x in categories]])
+    return user_preprocessing().transform(categories)[0]
+
+# get feature of single user and add preprocessing features 
+def create_single_user_feature(user_id):
+    user_feature = user_features()[user_id]
+    categories = get_user_categories(user_id)
+    nr_common_features = get_length_common_features_users()
+    return hstack([categories, user_feature[:, nr_common_features:]])
 
 
 def is_user_added(user_id):
@@ -163,23 +174,26 @@ def compute_user_precision(model, nr_positive_ratings, y, item_features, user_fe
                                  k=nr_positive_ratings, num_threads=8).mean()
 
 
-def model_books_train_on_user(positive_book_ratings, user_id):
+def model_books_train_on_user(positive_book_ratings, user_id, user_feature):
     with books_train_on_user_lock:
         add_new_users(model, user_id)
         reset_user_gradients(user_id)
 
-        single_user_model = new_model_with_single_user(user_id)
+        single_user_model = new_model_with_single_user(user_feature)
 
         y = convert_positive_book_ratings_to_csr(
             positive_book_ratings, 1, 0)
-
+        
+        user_feature_ones = csr_matrix(user_feature.data)
+        
+        
         max_percentage = 0
         precision = compute_user_precision(
-            single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=None)
+            single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_feature_ones)
         while precision < TARGET_PRECISION:
-            single_user_model.fit_partial(y, item_features=item_features(), epochs=10, num_threads=8)
+            single_user_model.fit_partial(y, item_features=item_features(), user_features=user_feature_ones, epochs=10, num_threads=8)
             precision = compute_user_precision(
-                single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=None)
+                single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_feature_ones)
             percentage = round(precision / TARGET_PRECISION, 2)
             percentage = min(1, percentage)
             if percentage > max_percentage:
@@ -188,7 +202,7 @@ def model_books_train_on_user(positive_book_ratings, user_id):
                 yield json.dumps(data) + '\n'
         with books_model_memory_change_lock.gen_wlock():
             transfer_data_from_new_model_to_model(
-                single_user_model, model, user_id)
+                single_user_model, model, user_feature)
             refit_neighbors()
             joblib.dump(model, utils.BOOKS_DATA_MODEL)
 
@@ -206,8 +220,11 @@ def validate_training_status(user_id):
             return {"must_train": True}
         y = convert_positive_book_ratings_to_csr(
             positive_book_ratings, get_nr_users(), user_id)
+        user_feature = create_single_user_feature(user_id)
+        user_features_ = user_features()
+        user_features_[user_id] = user_feature[0]
         precision = compute_user_precision(
-            model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_features())
+            model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_features_)
     if precision < 0.2:
         return {"must_train": True}
     if precision < TARGET_PRECISION:
@@ -228,7 +245,9 @@ def user_train():
     validation = validate_training_status(current_user.id)
     if 'cannot_train' in validation or validation.get('can_train', True) == False:
         return validation
-    return model_books_train_on_user(g.positive_book_ratings, current_user.id), {'content_type': 'Application/json'}
+    user_feature = create_single_user_feature(current_user.id)
+    v = model_books_train_on_user(g.positive_book_ratings, current_user.id, user_feature)
+    return v, {'content_type': 'Application/json'}
 
 
 @models_blueprint.get("/books/user_recommendations")
@@ -242,7 +261,10 @@ def books_recommendations():
 
     with books_model_memory_change_lock.gen_rlock():
         books_indices = np.arange(get_nr_items())
-        predictions = model.predict(current_user.id, books_indices, item_features=item_features(), user_features=user_features())
+        user_feature = create_single_user_feature(current_user.id)
+        user_features_ = user_features()
+        user_features_[current_user.id] = user_feature[0]
+        predictions = model.predict(current_user.id, books_indices, item_features=item_features(), user_features=user_features_)
     prediction_indices_sorted = np.argsort(-predictions)
     prediction_indices_sorted = prediction_indices_sorted[np.isin(
         prediction_indices_sorted, books_not_to_show) == False]
