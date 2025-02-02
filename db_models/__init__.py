@@ -6,3 +6,4 @@ from .book_categories import BookCategories
 from .book_rating import BookRating
 from .category import Category
 from .author import Author
+from .liked_categories import LikedCategories
