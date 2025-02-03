@@ -49,6 +49,7 @@ def add_new_users(model: LightFM, user_id):
         new_user_features = identity(nr_users_to_add)
         new_user_features = hstack([csr_matrix((nr_users_to_add, user_features().shape[1])), new_user_features])
         new_user_features = vstack([user_features_hstack, new_user_features])
+        new_user_features = csr_matrix(new_user_features)
         set_user_features(new_user_features)
     # nr_users for model_embeddings
     unique_embeddings_len = model.user_embeddings.shape[0] - get_length_common_features_users()
@@ -145,12 +146,15 @@ def get_user_categories(user_id):
     categories = pd.Series([[x.name for x in categories]])
     return user_preprocessing().transform(categories)[0]
 
-# get feature of single user and add preprocessing features 
-def create_single_user_feature(user_id):
+def concat_categories_user_feature(categories, user_id):
     user_feature = user_features()[user_id]
-    categories = get_user_categories(user_id)
     nr_common_features = get_length_common_features_users()
     return hstack([categories, user_feature[:, nr_common_features:]])
+
+
+# get feature of single user and add preprocessing features (categories)
+def create_single_user_feature(user_id):
+    return concat_categories_user_feature(get_user_categories(user_id), user_id)
 
 
 def is_user_added(user_id):
@@ -174,11 +178,12 @@ def compute_user_precision(model, nr_positive_ratings, y, item_features, user_fe
                                  k=nr_positive_ratings, num_threads=8).mean()
 
 
-def model_books_train_on_user(positive_book_ratings, user_id, user_feature):
+def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
     with books_train_on_user_lock:
         add_new_users(model, user_id)
         reset_user_gradients(user_id)
 
+        user_feature = concat_categories_user_feature(user_categories, user_id)
         single_user_model = new_model_with_single_user(user_feature)
 
         y = convert_positive_book_ratings_to_csr(
@@ -245,8 +250,8 @@ def user_train():
     validation = validate_training_status(current_user.id)
     if 'cannot_train' in validation or validation.get('can_train', True) == False:
         return validation
-    user_feature = create_single_user_feature(current_user.id)
-    v = model_books_train_on_user(g.positive_book_ratings, current_user.id, user_feature)
+    user_categories = get_user_categories(current_user.id)
+    v = model_books_train_on_user(g.positive_book_ratings, current_user.id, user_categories)
     return v, {'content_type': 'Application/json'}
 
 
