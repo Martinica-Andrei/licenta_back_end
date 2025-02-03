@@ -16,9 +16,18 @@ api_blueprint.register_blueprint(categories_blueprint)
 @categories_blueprint.get("/")
 def index():
     name = request.args.get('name', '')
-    print(name)
-    results = db.session.query(Category.__table__.columns).filter(Category.name.like(f'%{name}%')).all()
-    df = pd.DataFrame(results)
+    query = db.session.query(Category.__table__.columns).filter(Category.name.like(f'%{name}%'))
+    if current_user.is_authenticated:
+        query = query.subquery()
+        query1 = db.session.query(LikedCategories.category_id).filter(LikedCategories.user_id == current_user.id).subquery()
+        query2 = db.session.query(query, query1).outerjoin(query1, query.c.id == query1.c.category_id)
+        results = query2.all()
+        df = pd.DataFrame(results).rename(columns={'category_id' : 'liked'})
+        df.loc[df['liked'].isna() == False, 'liked'] = True
+        df['liked'] = df['liked'].fillna(False)
+    else:
+        results = query.all()
+        df = pd.DataFrame(results)
     return df.to_json(index=False, orient='records'), {'Content-Type': 'application/json'}
 
 @categories_blueprint.get('/me')

@@ -141,6 +141,8 @@ def transfer_data_from_new_model_to_model(new_model, model, user_feature):
     model.user_embedding_momentum[user_feature] = new_model.user_embedding_momentum[0:1].copy()
     
 def get_user_categories(user_id):
+    # sqlalchemy must have columns from all joins therefore include LikedCategories.category_id
+    # then discard it
     categories = db.session.query(LikedCategories.category_id, Category.name).filter(LikedCategories.user_id == user_id).join(
         Category, Category.id == LikedCategories.category_id).all()
     categories = pd.Series([[x.name for x in categories]])
