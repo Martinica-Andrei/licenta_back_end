@@ -53,11 +53,11 @@ def like_category():
         return {"id": "Invalid id!"}, 400
     if 'like' not in body:
         return {"like": "Like is required!"}, 400
-    is_like = body['like'].lower()
-    if is_like not in ['true', 'false']:
-        return {"like": "Like must have value 'true' or 'false'!"}, 400
+    is_like = body['like']
+    if is_like not in [True, False]:
+        return {"like": "Like must have value true or false!"}, 400
     liked_cat = db.session.query(LikedCategories).filter(sa.and_(LikedCategories.user_id == current_user.id, LikedCategories.category_id == id)).first()
-    if is_like == 'true':
+    if is_like:
         if liked_cat is None:
             liked_cat = LikedCategories(category_id=id, user_id=current_user.id)
             db.session.add(liked_cat)
