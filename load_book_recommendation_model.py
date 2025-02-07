@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 from scipy.sparse import load_npz, save_npz, csr_matrix
 import utils
 from most_common_words import MostCommonWords
+from sklearn.compose import ColumnTransformer
 
 model : LightFM = joblib.load(utils.BOOKS_DATA_MODEL)
 neighbors = NearestNeighbors(n_neighbors=30, metric='cosine')
@@ -14,19 +15,24 @@ _item_features = csr_matrix(load_npz(utils.BOOKS_DATA_ITEM_FEATURES))
 _user_features = csr_matrix(load_npz(utils.BOOKS_DATA_USER_FEATURES))
 
 _user_preprocessing : MostCommonWords
+_item_preprocessing : ColumnTransformer
 
 def load_user_preprocessing():
     global _user_preprocessing
-    # user_preprocessing LabelEncoder is from version 1.2.2 and current version is 1.5.2. Classes are still intact 
-    # therefore i'm recreating labelEncoder with classes
-    # and newer version, error still shows because it is being loaded
+    #LabelEncoder is from version 1.2.2 and current version is 1.5.2.
     _user_preprocessing = joblib.load(utils.BOOKS_DATA_USER_PREPROCESSING)
-    encoder = LabelEncoder()
-    encoder.classes_ = _user_preprocessing.encoder_.classes_.copy()
-    _user_preprocessing.encoder_ = encoder
+
+def load_item_preprocessing():
+    global _item_preprocessing
+    #LabelEncoder is from version 1.2.2 and current version is 1.5.2.
+    _item_preprocessing = joblib.load(utils.BOOKS_DATA_ITEM_PREPROCESSING)
+
 
 def user_preprocessing():
     return _user_preprocessing
+
+def item_preprocessing():
+    return _item_preprocessing
 
 def model_item_representations():
     bias, components = model.get_item_representations(_item_features) 

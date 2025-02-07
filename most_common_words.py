@@ -21,7 +21,7 @@ class MostCommonWords(BaseEstimator, TransformerMixin):
     
     def _preprocess(self, X):
         if type(X) is pd.DataFrame:
-            X = X.squeeze()
+            X = X.iloc[:, 0]
         if self.is_input_array == False:
             return self._preprocess_str(X)
         return self._preprocess_arr(X)

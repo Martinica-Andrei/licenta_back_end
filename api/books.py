@@ -1,7 +1,11 @@
 from flask import request, Blueprint
 import pandas as pd
 import utils
-from load_book_recommendation_model import neighbors, model_item_representations
+from load_book_recommendation_model import (neighbors, 
+                                            model_item_representations, 
+                                            item_preprocessing, 
+                                            model,
+                                            item_features)
 from .api import api_blueprint
 from db_models.book import Book
 from db_models.book_rating import BookRating
@@ -16,6 +20,8 @@ from flask_login import login_required, current_user
 from thread_locks import books_model_memory_change_lock
 from sqlalchemy import func, literal_column
 import numpy as np
+from csrf import csrf
+from scipy.sparse import hstack, csr_matrix
 
 books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
@@ -36,6 +42,18 @@ def validate_rate_book(body):
         return {"rating": "Rating must have value 'like', 'dislike' or 'none'!"}, 400
     return True
 
+def validate_recommendations(body):
+    if 'content' not in body:
+        return {'content': 'Content is required!'}, 400
+    if 'authors' not in body:
+        body['authors'] = []
+    elif type(body['authors']) is not list:
+        return {'authors' :'Authors must be an array!'}, 400
+    if 'categories' not in body:
+        body['categories'] = []
+    elif type(body['categories']) is not list:
+        return {'categories' :'Categories must be an array!'}, 400
+    return True
 
 @books_blueprint.get("/search")
 def search():
@@ -60,18 +78,35 @@ def search():
     return jsonify(results)
 
 
-@books_blueprint.get("/recommendations")
+@books_blueprint.route("/recommendations", methods=['GET', 'POST'])
+@csrf.exempt
 def books_recommendations():
-    try:
-        id = int(request.args.get('id'))
-    except:
-        return {"err": "Query string id is required."}, 400
-    with books_model_memory_change_lock.gen_rlock():
-        item_representations = model_item_representations()
-        if id < 0 or id >= len(item_representations):
-            return {"err": f"Invalid id : {id}"}, 400
-        target_item = item_representations[id:id+1]
-        indices = neighbors.kneighbors(target_item, return_distance=False)[0]
+    if request.method == 'GET':
+        try:
+            id = int(request.args.get('id'))
+        except:
+            return {"err": "Query string id is required."}, 400
+        with books_model_memory_change_lock.gen_rlock():
+            item_representations = model_item_representations()
+            if id < 0 or id >= len(item_representations):
+                return {"err": f"Invalid id : {id}"}, 400
+            target_item = item_representations[id:id+1]
+            indices = neighbors.kneighbors(target_item, return_distance=False)[0]
+    else:
+        body = request.get_json()
+        body = {k.lower(): v for k, v in body.items()}
+        validation_result = validate_recommendations(body)
+        if validation_result != True:
+            return validation_result
+        content, categories, authors = body['content'], body['categories'], body['authors']
+        feature_df = pd.DataFrame({'content' : [content], 'categories' : [categories], 'authors' : [authors]})  
+        transformed = item_preprocessing().transform(feature_df)
+        with books_model_memory_change_lock.gen_rlock():
+            nr_zeros_to_add = item_features().shape[1] - transformed.shape[1]
+            transformed = hstack([transformed, csr_matrix((1, nr_zeros_to_add))])
+            bias, components = model.get_item_representations(transformed)
+            item_representations = np.concatenate([bias.reshape(-1,1), components], axis=1)
+            indices = neighbors.kneighbors(item_representations, return_distance=False)[0]
 
     indices = indices.tolist()
     grp_conc_sep = ' | '
@@ -87,13 +122,13 @@ def books_recommendations():
                                     'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_names'), 
                                 func.group_concat(func.ifnull(BookAuthors.role, ifnull).op(
                                     'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('author_roles')).filter(
-        Book.id.in_(indices)).join(BookAuthors, BookAuthors.book_id == Book.id).join(
+        Book.id.in_(indices)).outerjoin(BookAuthors, BookAuthors.book_id == Book.id).outerjoin(
             Author, Author.id == BookAuthors.author_id).group_by(Book).subquery()
     #query1 adds categories to query
     query1 = db.session.query(query, 
                                     func.group_concat(func.ifnull(Category.name, ifnull).op(
-                                    'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('categories')).join(
-                                        BookCategories, BookCategories.book_id == query.c.id).join(
+                                    'SEPARATOR')(literal_column(f'"{grp_conc_sep}"'))).label('categories')).outerjoin(
+                                        BookCategories, BookCategories.book_id == query.c.id).outerjoin(
                                             Category, Category.id == BookCategories.category_id
                                         ).group_by(query)
     
