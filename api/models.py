@@ -138,7 +138,7 @@ def transfer_data_from_new_model_to_model(new_model, model, user_feature):
     model.user_bias_gradients[user_feature] = new_model.user_bias_gradients.copy()
     model.user_embedding_gradients[user_feature] = new_model.user_embedding_gradients.copy()
     model.user_bias_momentum[user_feature] = new_model.user_bias_momentum.copy()
-    model.user_embedding_momentum[user_feature] = new_model.user_embedding_momentum[0:1].copy()
+    model.user_embedding_momentum[user_feature] = new_model.user_embedding_momentum.copy()
     
 def get_user_categories(user_id):
     # sqlalchemy must have columns from all joins therefore include LikedCategories.category_id
