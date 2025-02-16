@@ -36,7 +36,7 @@ api_blueprint.register_blueprint(models_blueprint)
 
 books_train_on_user_lock = threading.Lock()
 
-TARGET_PRECISION = 0.8
+TARGET_PRECISION = 0.4
 MINIMUM_POSITIVE_RATINGS = 20
 
 def add_new_users(model: LightFM, user_id):
