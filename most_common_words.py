@@ -9,6 +9,9 @@ from nltk.stem import PorterStemmer
 
 ps = PorterStemmer()
 
+# The following code comes from my Kaggle Notebook
+# https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-data-preprocessing
+
 # only work on single column dataframe/series only
 class MostCommonWords(BaseEstimator, TransformerMixin):
     def __init__(self, min_count=5, lower=True, replace_punctuation='', replace_number=None, stem=True, is_input_array=False):
