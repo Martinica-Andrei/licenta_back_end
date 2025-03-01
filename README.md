@@ -9,7 +9,9 @@
 </div>
 <div>
     <h3>Downloading, analysis, and preprocessing of data were done on kaggle.</h3>
-    <a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-datasets-download">Downloading</a>
-    <a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-analysis">Analysis</a>
-    <a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-data-preprocessing">Preprocessing</a>
+    <ul>
+        <li><a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-datasets-download">Downloading</a></li>
+        <li><a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-analysis">Analysis</a></li>
+        <li><a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-data-preprocessing">Preprocessing</a></li>
+    </ul>
 </div>
