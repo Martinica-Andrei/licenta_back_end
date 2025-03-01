@@ -9,7 +9,7 @@ from nltk.stem import PorterStemmer
 
 ps = PorterStemmer()
 
-# The following code comes from my Kaggle Notebook
+# The following code is from my Kaggle Notebook
 # https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-data-preprocessing
 
 # only work on single column dataframe/series only
