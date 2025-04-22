@@ -30,3 +30,4 @@ log_bin_trust_function_creators = 1
 
 
 Execute in shell: alembic upgrade head
+Execute scrape_images.ipynb
