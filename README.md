@@ -15,3 +15,18 @@
         <li><a href="https://www.kaggle.com/code/mrtinicandreimarian/goodreads-book-graph-data-preprocessing">Preprocessing</a></li>
     </ul>
 </div>
+
+Create virtual environment using python version 3.10.17.
+pip install -r requirements.txt
+modify alembic.ini connection string
+modify app.secret_key (app.py) and store it somewhere outside the code
+
+CHANGE OR SET IN /etc/mysql/my.cnf (mysql config file in linux)
+
+[mysqld]
+innodb_ft_min_token_size=1
+log_bin_trust_function_creators = 1
+
+
+
+Execute in shell: alembic upgrade head

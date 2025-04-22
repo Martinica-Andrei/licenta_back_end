@@ -1,2 +1,0 @@
-1.modify alembic.ini connection string
-2.modify app.secret_key (app.py) and store it somewhere outside the code
