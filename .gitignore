@@ -162,4 +162,5 @@ cython_debug/
 #.idea/
 
 #custom
-books_data
+books_data/
+training_data/

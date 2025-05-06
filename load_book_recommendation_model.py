@@ -19,12 +19,10 @@ _item_preprocessing : ColumnTransformer
 
 def load_user_preprocessing():
     global _user_preprocessing
-    #LabelEncoder is from version 1.2.2 and current version is 1.5.2.
     _user_preprocessing = joblib.load(utils.BOOKS_DATA_USER_PREPROCESSING)
 
 def load_item_preprocessing():
     global _item_preprocessing
-    #LabelEncoder is from version 1.2.2 and current version is 1.5.2.
     _item_preprocessing = joblib.load(utils.BOOKS_DATA_ITEM_PREPROCESSING)
 
 
