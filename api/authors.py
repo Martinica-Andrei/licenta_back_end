@@ -16,6 +16,6 @@ api_blueprint.register_blueprint(authors_blueprint)
 @authors_blueprint.get("/")
 def index():
     name = request.args.get('name', '')
-    results = db.session.query(Author.id, Author.name).filter(Author.name.like(f'%{name}%')).limit(100).all()
+    results = db.session.query(Author.id, Author.name).filter(Author.name.like(f'%{name}%')).order_by(sa.func.char_length(Author.name)).limit(100).all()
     df = pd.DataFrame(results)
     return df.to_json(index=False, orient='records'), {'Content-Type': 'application/json'}

@@ -29,6 +29,8 @@ def upgrade() -> None:
     download_books_data()
 
     authors = pd.read_csv(utils.BOOKS_AUTHORS).rename(columns={'author_id' : 'id'})
+    authors = authors.loc[:, ["id","name"]]
+
     categories = pd.read_csv(utils.BOOKS_CATEGORIES).rename(columns={'0':'name'})
     categories_encoder = LabelEncoder().fit(categories['name'])
     categories['id'] = categories_encoder.transform(categories['name'])
