@@ -1,14 +1,10 @@
 from flask import Blueprint, request
 from services.auth_service import AuthService
 from services.auth_service import AuthError
-from services.user_service import UserService
 from .api import api_blueprint
-from flask import jsonify
-from db_models.user import User
 from db import db
 from csrf import csrf
-from flask_wtf.csrf import generate_csrf
-from flask_login import login_user, logout_user, login_required
+from flask_login import logout_user, login_required
 from dtos.auths.create_auth_dto import CreateAuthDto
 from dtos.auths.get_auth_dto import GetAuthDto
 
