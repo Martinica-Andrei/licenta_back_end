@@ -16,6 +16,9 @@ api_blueprint.register_blueprint(auth_blueprint)
 @auth_blueprint.post("/register")
 @csrf.exempt
 def register():
+    """
+    Registers and logins user. If valid returns csrf_token, otherwise returns key: err message.
+    """
     dto, invalid_message = RegisterDto.convert_from_dict(request.get_json())
     if dto is None:
         return invalid_message, 400
@@ -32,6 +35,9 @@ def register():
 @auth_blueprint.post("/login")
 @csrf.exempt
 def login():
+    """
+    Logins user. If valid returns csrf_token, otherwise returns key: err message.
+    """
     dto, invalid_message = LoginDto.convert_from_dict(request.get_json())
     if dto is None:
         return invalid_message, 400
@@ -43,6 +49,9 @@ def login():
 
 @auth_blueprint.get('/logoff')
 def logoff():
+    """
+    Logs off the user and returns nothing.
+    """
     logout_user()
     return {}
     
@@ -50,4 +59,8 @@ def logoff():
 @login_required
 @csrf.exempt
 def check_session():
+    """
+    Check if user is authenticated using remember me or session.
+    Refreshes the csrf_token in case user is authenticated by remember me.
+    """
     return {'csrf_token': generate_csrf()}

@@ -1,7 +1,7 @@
 class Convertor:
 
     @staticmethod
-    def convert_bool_from_dict(body: dict, key: str) -> tuple[bool, str]:
+    def convert_bool_from_dict(body: dict, key: str) -> tuple[bool, dict[str, str]]:
         """
         Validates value in `body[key]` and converts to bool if valid. Validation is case insensitive.
 
@@ -11,7 +11,7 @@ class Convertor:
 
         Returns:
             If value is valid, returns tuple[true|false, None].
-            Else, returns tuple[None, invalid_message].
+            Else, returns tuple[None, dict_invalid_message].
         """
         value = str(body[key]).lower()
         if value not in ['true', 'false']:

@@ -9,7 +9,16 @@ class RegisterDto:
         self.remember_me = remember_me
 
     @staticmethod
-    def convert_from_dict(body: dict) -> tuple["RegisterDto", dict]:
+    def convert_from_dict(body: dict) -> tuple["RegisterDto", dict[str, str]]:
+        """
+        Converts dict to RegisterDto.
+
+        Args:
+            body (dict): Dictionary to be converted.
+
+        Returns:
+            If valid returns (RegisterDto, None) otherwise returns (None, dict_invalid_message).
+        """
         body = {k.lower(): v for k, v in body.items()}
         if 'name' not in body:
             return None, {"name": "Name is required!"}

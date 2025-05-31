@@ -7,7 +7,16 @@ class LoginDto:
         self.remember_me = remember_me
 
     @staticmethod
-    def convert_from_dict(body: dict) -> tuple["LoginDto", dict]:
+    def convert_from_dict(body: dict) -> tuple["LoginDto", dict[str, str]]:
+        """
+        Converts dict to LoginDto.
+
+        Args:
+            body (dict): Dictionary to be converted.
+
+        Returns:
+            If valid returns (LoginDto, None) otherwise returns (None, dict_invalid_message).
+        """
         body = {k.lower(): v for k, v in body.items()}
         if 'name' not in body:
             return None, {"name": "Name is required!"}
