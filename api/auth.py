@@ -21,7 +21,7 @@ def register():
     auth_service = AuthService(db.session)
     password = dto.password # store password because it will be hashed
     try:
-        dto = auth_service.create_user(dto)
+        dto = auth_service.create(dto)
     except AuthError as err:
         return err.to_tuple()
     try:

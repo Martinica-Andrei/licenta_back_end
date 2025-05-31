@@ -27,9 +27,9 @@ class AuthService:
     def __init__(self, scoped_session: scoped_session):
         self.user_repository = UserRepository(scoped_session)
 
-    def get_user_by_name(self, name: str) -> GetAuthDto:
+    def find_by_name(self, name: str) -> GetAuthDto:
         """
-        Gets user by name.
+        Finds user by name.
   
         Args:
             name (str): Name of user.
@@ -37,12 +37,12 @@ class AuthService:
         Returns:
             GetAuthDto
         """
-        model = self.user_repository.get_user_by_name(name)
+        model = self.user_repository.find_by_name(name)
         if model is not None:
             return self.map_to_dto(model)
         return None
 
-    def create_user(self, dto: CreateAuthDto) -> GetAuthDto:
+    def create(self, dto: CreateAuthDto) -> GetAuthDto:
         """
         Creates the user.
   
@@ -55,12 +55,12 @@ class AuthService:
         Raises:
             AuthError: If `dto.name` already exists in the repository.
         """
-        if self.get_user_by_name(dto.name) is not None:
+        if self.find_by_name(dto.name) is not None:
             raise AuthError(
                 {"name": f'Name "{dto.name}" is already taken!'}, 400)
         model = self.map_to_model_from_create(dto)
         model.password = self.hash_password(model.password)
-        model = self.user_repository.create_user(model)
+        model = self.user_repository.create(model)
         return self.map_to_dto(model)
 
     def login_user(self, dto: GetAuthDto) -> dict:
@@ -77,7 +77,7 @@ class AuthService:
             AuthError: If user with `dto.name` doesn't exist.
             AuthError: If hashed `dto.password` doesn't match with the user repository password.
         """
-        existing_model = self.get_user_by_name(dto.name)
+        existing_model = self.find_by_name(dto.name)
         if existing_model is None:
             raise AuthError({"name": 'User doesn\'t exist!'}, 400)
         if existing_model.password != self.hash_password(dto.password):
