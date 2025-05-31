@@ -6,4 +6,3 @@ def handle_csrf_error(e):
     return {"csrf" : "CSRF token is missing!"}, 403
 
 csrf = CSRFProtect(app)
-

@@ -7,6 +7,7 @@ from csrf import csrf
 from flask_login import logout_user, login_required
 from dtos.auths.register_dto import RegisterDto
 from dtos.auths.login_dto import LoginDto
+from flask_wtf.csrf import generate_csrf
 
 auth_blueprint = Blueprint('auth', __name__,
                            url_prefix='/auth')
@@ -15,7 +16,7 @@ api_blueprint.register_blueprint(auth_blueprint)
 @auth_blueprint.post("/register")
 @csrf.exempt
 def register():
-    dto, invalid_message = RegisterDto.validate(request.get_json())
+    dto, invalid_message = RegisterDto.convert_from_dict(request.get_json())
     if dto is None:
         return invalid_message, 400
     auth_service = AuthService(db.session)
@@ -31,7 +32,7 @@ def register():
 @auth_blueprint.post("/login")
 @csrf.exempt
 def login():
-    dto, invalid_message = LoginDto.validate(request.get_json())
+    dto, invalid_message = LoginDto.convert_from_dict(request.get_json())
     if dto is None:
         return invalid_message, 400
     auth_service = AuthService(db.session)
@@ -47,5 +48,6 @@ def logoff():
     
 @auth_blueprint.post('/check_session')
 @login_required
+@csrf.exempt
 def check_session():
-    return {}
+    return {'csrf_token': generate_csrf()}
