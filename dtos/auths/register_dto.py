@@ -1,12 +1,12 @@
 import re
 
-class CreateAuthDto:
+class RegisterDto:
     def __init__(self, name: str, password: str):
         self.name = name
         self.password = password
 
     @staticmethod
-    def validate(body: dict) -> tuple["CreateAuthDto", dict]:
+    def validate(body: dict) -> tuple["RegisterDto", dict]:
         body = {k.lower(): v for k, v in body.items()}
         if 'name' not in body:
             return None, {"name": "Name is required!"}
@@ -22,4 +22,4 @@ class CreateAuthDto:
             return None, {"password": "Password must have a length between 1 and 30"}
         if re.search(r'\s', password):
             return None, {"password": "Password must not contain spaces!"}
-        return CreateAuthDto(name, password), None
+        return RegisterDto(name, password), None

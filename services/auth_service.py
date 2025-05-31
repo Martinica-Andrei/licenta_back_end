@@ -1,14 +1,11 @@
 import hashlib
 from sqlalchemy.orm.scoping import scoped_session
 from repositories.user_repository import UserRepository
-from dtos.auths.create_auth_dto import CreateAuthDto
-from dtos.auths.get_auth_dto import GetAuthDto
+from dtos.auths.register_dto import RegisterDto
+from dtos.auths.login_dto import LoginDto
 from db_models.user import User
-from flask_login import login_user, logout_user
+from flask_login import login_user
 from flask_wtf.csrf import generate_csrf
-
-from services.user_service import UserService
-
 
 class AuthError(Exception):
     def __init__(self, message: dict, code=400):
@@ -27,22 +24,7 @@ class AuthService:
     def __init__(self, scoped_session: scoped_session):
         self.user_repository = UserRepository(scoped_session)
 
-    def find_by_name(self, name: str) -> GetAuthDto:
-        """
-        Finds user by name.
-  
-        Args:
-            name (str): Name of user.
-  
-        Returns:
-            GetAuthDto
-        """
-        model = self.user_repository.find_by_name(name)
-        if model is not None:
-            return self.map_to_dto(model)
-        return None
-
-    def create(self, dto: CreateAuthDto) -> GetAuthDto:
+    def register(self, dto: RegisterDto) -> LoginDto:
         """
         Creates the user.
   
@@ -55,15 +37,18 @@ class AuthService:
         Raises:
             AuthError: If `dto.name` already exists in the repository.
         """
-        if self.find_by_name(dto.name) is not None:
+        if self.user_repository.find_by_name(dto.name) is not None:
             raise AuthError(
                 {"name": f'Name "{dto.name}" is already taken!'}, 400)
-        model = self.map_to_model_from_create(dto)
+        password = dto.password
+        model = self.map_register_dto_to_model(dto)
         model.password = self.hash_password(model.password)
         model = self.user_repository.create(model)
-        return self.map_to_dto(model)
+        dto = self.map_model_to_login_dto(model)
+        dto.password = password
+        return dto
 
-    def login_user(self, dto: GetAuthDto) -> dict:
+    def login_user(self, dto: LoginDto) -> dict:
         """
         Logins the user.
   
@@ -77,25 +62,20 @@ class AuthService:
             AuthError: If user with `dto.name` doesn't exist.
             AuthError: If hashed `dto.password` doesn't match with the user repository password.
         """
-        existing_model = self.find_by_name(dto.name)
-        if existing_model is None:
+        model = self.user_repository.find_by_name(dto.name)
+        if model is None:
             raise AuthError({"name": 'User doesn\'t exist!'}, 400)
-        if existing_model.password != self.hash_password(dto.password):
+        if model.password != self.hash_password(dto.password):
             raise AuthError({"password": "Incorrect password!"}, 400)
-        model = self.map_to_model_from_get(dto)
         login_user(model)
         return {'csrf_token': generate_csrf()}
 
     @staticmethod
-    def map_to_dto(model: User) -> GetAuthDto:
-        return GetAuthDto(model.name, model.password)
+    def map_model_to_login_dto(model: User) -> LoginDto:
+        return LoginDto(model.name, model.password)
 
     @staticmethod
-    def map_to_model_from_create(dto: CreateAuthDto):
-        return User(name=dto.name, password=dto.password)
-
-    @staticmethod
-    def map_to_model_from_get(dto: GetAuthDto):
+    def map_register_dto_to_model(dto: RegisterDto):
         return User(name=dto.name, password=dto.password)
 
     @staticmethod

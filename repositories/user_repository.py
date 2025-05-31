@@ -6,6 +6,15 @@ class UserRepository:
         self.scoped_session = scoped_session
 
     def find_by_name(self, name : str) -> User:
+        """
+        Finds user by name.
+  
+        Args:
+            name (str): Name of user.
+  
+        Returns:
+            User
+        """
         user = self.scoped_session.query(User).where(User.name == name).first()
         return user;
 
