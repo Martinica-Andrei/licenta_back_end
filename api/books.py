@@ -1,5 +1,8 @@
 from flask import request, Blueprint
 import pandas as pd
+from dtos.books.search_book_dto import SearchBookDto
+from dtos.converter import ValidationError
+from services.book_service import BookService
 import utils
 from load_book_recommendation_model import (neighbors, 
                                             model_item_representations, 
@@ -57,26 +60,14 @@ def validate_recommendations(body):
 
 @books_blueprint.get("/search")
 def search():
-    title = request.args.get('title', '')
-    words_str, words_list = utils.convert_for_word_search(title)
-    count = int(request.args.get('count', 5))
-    if len(words_str) == 0 or count <= 0:
-        return []
-    locate_str = ', '.join(
-        [f'LOCATE(:pos_{i}, title) AS pos_{i}' for i in range(len(words_list))])
-    pos_names = [f'pos_{i}' for i in range(len(words_list))]
-    query = f"""SELECT id, title FROM
-                (SELECT id, title, LENGTH(title) as len_title, {locate_str} 
-                FROM book WHERE MATCH(title) AGAINST (:title IN BOOLEAN MODE) ORDER BY {', '.join(pos_names)}, 
-                len_title LIMIT :limit) as query 
-            """
-    params = dict(zip(pos_names, words_list))
-    params['title'] = words_str
-    params['limit'] = count
-    results = db.session.execute(sa.text(query), params).fetchall()
-    results = [{"id": x[0], "title": x[1]} for x in results]
-    return jsonify(results)
-
+    try:
+        dto = SearchBookDto.convert_from_dict(request.args, '', 100)
+    except ValidationError as err:
+        return err.to_tuple()
+    book_service = BookService(db.session)
+    dtos = book_service.find_by_title_containing(dto)
+    list_with_json = [dto.to_json() for dto in dtos]
+    return jsonify(list_with_json)
 
 @books_blueprint.route("/recommendations", methods=['GET', 'POST'])
 @csrf.exempt

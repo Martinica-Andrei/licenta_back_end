@@ -59,5 +59,5 @@ class CategoryRepository:
         """
         models = self.scoped_session.query(Category).\
             join(LikedCategories, LikedCategories.category_id == Category.id).\
-            filter(LikedCategories.user_id == user_id).all()
+            where(LikedCategories.user_id == user_id).all()
         return models
