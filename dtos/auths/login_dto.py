@@ -7,7 +7,7 @@ class LoginDto:
         self.remember_me = remember_me
 
     @staticmethod
-    def convert_from_dict(body: dict) -> tuple["LoginDto", dict[str, str]]:
+    def convert_from_dict(body: dict) -> "LoginDto":
         """
         Converts dict to LoginDto.
 
@@ -15,14 +15,16 @@ class LoginDto:
             body (dict): Dictionary to be converted.
 
         Returns:
-            If valid returns (LoginDto, None) otherwise returns (None, dict_invalid_message).
+            LoginDto.
+
+        Raises:
+            ValidationError: If any validation fails.
         """
         body = {k.lower(): v for k, v in body.items()}
-        if 'name' not in body:
-            return None, {"name": "Name is required!"}
-        if 'password' not in body:
-            return None, {"password": "Password is required!"}
-        remember_me, invalid_message = Convertor.convert_bool_from_dict(body, "remember_me")
-        if remember_me is None:
-            return None, invalid_message
-        return LoginDto(body['name'], body['password'], remember_me), None
+        Convertor.validate_is_required(body, 'name')
+        Convertor.validate_is_required(body, 'password')
+        if 'remember_me' in body:
+            remember_me = Convertor.convert_bool_from_dict(body, "remember_me")
+        else:
+            remember_me = False
+        return LoginDto(body['name'], body['password'], remember_me)

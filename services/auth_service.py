@@ -15,7 +15,7 @@ class AuthError(Exception):
 
     def to_tuple(self) -> tuple:
         """
-        Returns (`message`, `code`)
+        Returns (`message`, `code`).
         """
         return (self.message, self.code)
 
@@ -39,7 +39,7 @@ class AuthService:
         """
         if self.user_repository.find_by_name(dto.name) is not None:
             raise AuthError(
-                {"name": f'Name "{dto.name}" is already taken!'}, 400)
+                {"name": f'Name {dto.name} is already taken!'}, 400)
         model = self.map_register_dto_to_model(dto)
         model.password = self.hash_password(model.password)
         model = self.user_repository.create(model)

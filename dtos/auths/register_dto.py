@@ -9,7 +9,7 @@ class RegisterDto:
         self.remember_me = remember_me
 
     @staticmethod
-    def convert_from_dict(body: dict) -> tuple["RegisterDto", dict[str, str]]:
+    def convert_from_dict(body: dict) -> "RegisterDto":
         """
         Converts dict to RegisterDto.
 
@@ -17,24 +17,23 @@ class RegisterDto:
             body (dict): Dictionary to be converted.
 
         Returns:
-            If valid returns (RegisterDto, None) otherwise returns (None, dict_invalid_message).
+            RegisterDto.
+
+        Raises:
+            ValidationError: If any validation fails.
         """
         body = {k.lower(): v for k, v in body.items()}
-        if 'name' not in body:
-            return None, {"name": "Name is required!"}
-        name = body['name']
-        if len(name) == 0 or len(name) > 50:
-            return None, {"name": "Name must have a length between 1 and 50!"}
-        if re.search('\W', name):
-            return None, {"name": "Name can only contain alphanumerical characters and underscore!"}
-        if 'password' not in body:
-            return None, {"password": "Password is required!"}
-        password = body['password']
-        if len(password) == 0 or len(password) > 30:
-            return None, {"password": "Password must have a length between 1 and 30"}
-        if re.search(r'\s', password):
-            return None, {"password": "Password must not contain spaces!"}
-        remember_me, invalid_message = Convertor.convert_bool_from_dict(body, "remember_me")
-        if remember_me is None:
-            return None, invalid_message
-        return RegisterDto(name, password, remember_me), None
+        Convertor.validate_is_required(body, 'name')
+        Convertor.validate_str_len_is_in_range(body, 'name', 1, 50)
+        Convertor.validate_is_alphanumeric_underscore(body, 'name')
+        
+        Convertor.validate_is_required(body, 'password')
+        Convertor.validate_str_len_is_in_range(body, 'password', 1, 30)
+        Convertor.validate_has_no_spaces(body, 'password')
+
+        if 'remember_me' in body:
+            remember_me = Convertor.convert_bool_from_dict(body, "remember_me")
+        else:
+            remember_me = False
+
+        return RegisterDto(body['name'], body['password'], remember_me)

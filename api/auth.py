@@ -1,4 +1,5 @@
 from flask import Blueprint, request
+from dtos.convertor import ValidationError
 from services.auth_service import AuthService
 from services.auth_service import AuthError
 from .api import api_blueprint
@@ -19,9 +20,10 @@ def register():
     """
     Registers and logins user. If valid returns csrf_token, otherwise returns key: err message.
     """
-    dto, invalid_message = RegisterDto.convert_from_dict(request.get_json())
-    if dto is None:
-        return invalid_message, 400
+    try:
+        dto = RegisterDto.convert_from_dict(request.get_json())
+    except ValidationError as err:
+        return err.to_tuple()
     auth_service = AuthService(db.session)
     try:
         dto = auth_service.register(dto)
@@ -38,9 +40,10 @@ def login():
     """
     Logins user. If valid returns csrf_token, otherwise returns key: err message.
     """
-    dto, invalid_message = LoginDto.convert_from_dict(request.get_json())
-    if dto is None:
-        return invalid_message, 400
+    try:
+        dto = LoginDto.convert_from_dict(request.get_json())
+    except ValidationError as err:
+        return err.to_tuple()
     auth_service = AuthService(db.session)
     try:
         return auth_service.login_user(dto)
