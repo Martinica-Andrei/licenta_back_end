@@ -3,7 +3,7 @@ from flask import jsonify
 from dtos.converter import ValidationError
 from dtos.liked_categories.post_liked_category_dto import PostLikedCategoryDto
 from services.category_service import CategoryService
-from services.liked_category_service import LikedCategoryService
+from services.liked_category_service import LikedCategoryError, LikedCategoryService
 from .api import api_blueprint
 from flask_login import login_required, current_user
 from db import db
@@ -49,5 +49,8 @@ def like_category():
     except ValidationError as err:
         return err.to_tuple()
     liked_category_service = LikedCategoryService(db.session)
-    liked_category_service.update(dto)
+    try:
+        liked_category_service.update(dto)
+    except LikedCategoryError as err:
+        return err.to_tuple()
     return {}

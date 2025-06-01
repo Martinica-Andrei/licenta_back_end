@@ -8,6 +8,19 @@ class CategoryRepository:
     def __init__(self, scoped_session: scoped_session):
         self.scoped_session = scoped_session
 
+    def find_by_id(self, id: int) -> Category | None:
+        """
+        Find category by `id`.
+
+        Args:
+            id (int): Id of category to find.
+
+        Returns:
+            Category | None
+        """
+
+        return self.scoped_session.query(Category).where(Category.id == id).first()
+
     def find_by_name_containing(self, name: str) -> list[Category]:
         """
         Finds all categories that have `name`.

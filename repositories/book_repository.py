@@ -3,6 +3,7 @@ from db_models.book import Book
 from repositories.helper_methods import HelperMethods
 import sqlalchemy as sa
 
+
 class BookRepository:
     def __init__(self, scoped_session: scoped_session):
         self.scoped_session = scoped_session
@@ -18,8 +19,8 @@ class BookRepository:
         Returns:
             list[Book]: List of books that have `title`.
         """
-        
-        # words_str: the words to match against 
+
+        # words_str: the words to match against
         # words: used for creating locate_str and mapping location parameters to words
         # ex: words_str '+one* +punch*' while words = ['one', 'punch']
         words_str, words = HelperMethods.convert_for_word_search_mysql(title)
@@ -38,5 +39,6 @@ class BookRepository:
         params = dict(zip(pos_names, words))
         params['words'] = words_str
         params['limit'] = count
-        results = self.scoped_session.query(Book).from_statement(sa.text(query)).params(params).all()
+        results = self.scoped_session.query(Book).from_statement(
+            sa.text(query)).params(params).all()
         return results

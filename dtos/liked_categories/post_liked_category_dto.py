@@ -25,7 +25,6 @@ class PostLikedCategoryDto:
         
         Converter.validate_is_required(body, 'id')
         body['id'] = Converter.convert_int_from_dict(body, 'id')
-        Converter.validate_int_is_in_range(body, 'id', 0, get_nr_items() - 1)
 
         Converter.validate_is_required(body, 'like')
         is_like = Converter.convert_bool_from_dict(body, 'like')

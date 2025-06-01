@@ -40,7 +40,7 @@ class AuthService:
         """
         if self.user_repository.find_by_name(dto.name) is not None:
             raise AuthError(
-                {"name": f'Name {dto.name} is already taken!'}, 400)
+                {"name": f'* Name {dto.name} is already taken!'}, 400)
         model = self.map_register_dto_to_model(dto)
         model.password = self.hash_password(model.password)
         model = self.user_repository.create(model)
@@ -65,9 +65,9 @@ class AuthService:
         """
         model = self.user_repository.find_by_name(dto.name)
         if model is None:
-            raise AuthError({"name": 'User doesn\'t exist!'}, 400)
+            raise AuthError({"name": '* User doesn\'t exist!'}, 400)
         if model.password != self.hash_password(dto.password):
-            raise AuthError({"password": "Incorrect password!"}, 400)
+            raise AuthError({"password": "* Incorrect password!"}, 400)
         login_user(model, remember=dto.remember_me)
         return {'csrf_token': generate_csrf()}
 
