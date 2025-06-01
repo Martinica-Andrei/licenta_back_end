@@ -22,6 +22,7 @@ class PostLikedCategoryDto:
         Raises:
             ValidationError: If any validation fails.
         """
+        body = {k.lower(): v for k, v in body.items()}
         
         Converter.validate_is_required(body, 'id')
         body['id'] = Converter.convert_int_from_dict(body, 'id')

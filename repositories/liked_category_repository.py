@@ -44,7 +44,7 @@ class LikedCategoryRepository:
             model (LikedCategories): Model to delete.
 
         Returns:
-            LikedCategories: Updated model from db.
+            None.
         """
         self.scoped_session.delete(model)
         self.scoped_session.commit()

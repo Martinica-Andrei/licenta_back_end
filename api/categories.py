@@ -7,11 +7,6 @@ from services.liked_category_service import LikedCategoryError, LikedCategorySer
 from .api import api_blueprint
 from flask_login import login_required, current_user
 from db import db
-import sqlalchemy as sa
-from db_models.category import Category
-import pandas as pd
-from load_book_recommendation_model import get_nr_items
-from db_models import LikedCategories
 
 categories_blueprint = Blueprint('categories', __name__,
                          url_prefix='/categories')
@@ -50,7 +45,7 @@ def like_category():
         return err.to_tuple()
     liked_category_service = LikedCategoryService(db.session)
     try:
-        liked_category_service.update(dto)
+        liked_category_service.rate(dto)
     except LikedCategoryError as err:
         return err.to_tuple()
     return {}

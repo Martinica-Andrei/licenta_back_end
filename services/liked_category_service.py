@@ -25,9 +25,9 @@ class LikedCategoryService:
             scoped_session)
         self.category_repository = CategoryRepository(scoped_session)
 
-    def update(self, dto: PostLikedCategoryDto) -> None:
+    def rate(self, dto: PostLikedCategoryDto) -> None:
         """
-        Adds or deletes liked_category based on `dto.like` value.
+        Adds or deletes liked_category based on `dto.like` value. Doesn't raise LikedCategoryError if user doesn't exist.
 
         Args:
             dto (PostLikedCategoryDto): Category to create or delete.

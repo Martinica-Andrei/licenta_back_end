@@ -163,3 +163,25 @@ class Converter:
             cap_key = HelperMethods.capitalize_first_letter(key)
             raise ValidationError(
                 {key: f"{cap_key} must not contain spaces!"}, 400)
+
+    @staticmethod
+    def validate_has_value_in_list(body: dict, key: str, values: set) -> None:
+        """
+        Checks if `body[key]` is in `values`.
+
+        Args:
+            body (dict): Dictionary that contains `key`.
+            key (str): Key to access value in `body`.
+            values (set): Set that checks if it contains `body[key]`.
+
+        Returns:
+            None.
+
+        Raises:
+            ValidationError: If `body[key]` not in `values`.
+        """
+        if body[key] not in values:
+            cap_key = HelperMethods.capitalize_first_letter(key)
+            values_str = ', '.join(values)
+            raise ValidationError(
+                {key: f"{cap_key} must be {values_str}!"}, 400)

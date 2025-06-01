@@ -8,6 +8,19 @@ class BookRepository:
     def __init__(self, scoped_session: scoped_session):
         self.scoped_session = scoped_session
 
+    def find_by_id(self, id : int) -> Book | None:
+        """
+        Finds book by `id`.
+
+        Args:
+            id (int): Id to fetch book.
+
+        Returns:
+            Book | None
+        """
+
+        return self.scoped_session.query(Book).where(Book.id == id).first()
+
     def find_by_title_containing(self, title: str, count: int) -> list[Book]:
         """
         Finds all books that have `title` using full-text search in boolean mode.
