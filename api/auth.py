@@ -61,6 +61,6 @@ def logoff():
 def check_session():
     """
     Check if user is authenticated using remember me or session.
-    Refreshes the csrf_token in case user is authenticated by remember me.
+    Refreshes the csrf_token in case user is authenticated with remember me.
     """
     return {'csrf_token': generate_csrf()}

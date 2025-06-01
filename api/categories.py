@@ -1,4 +1,6 @@
 from flask import Blueprint, request
+from flask import jsonify
+from services.category_service import CategoryService
 from .api import api_blueprint
 from flask_login import login_required, current_user
 from db import db
@@ -16,27 +18,21 @@ api_blueprint.register_blueprint(categories_blueprint)
 @categories_blueprint.get("/")
 def index():
     name = request.args.get('name', '')
-    query = db.session.query(Category.__table__.columns).filter(Category.name.like(f'%{name}%'))
+    category_service = CategoryService(db.session)
     if current_user.is_authenticated:
-        query = query.subquery()
-        query1 = db.session.query(LikedCategories.category_id).filter(LikedCategories.user_id == current_user.id).subquery()
-        query2 = db.session.query(query, query1).outerjoin(query1, query.c.id == query1.c.category_id)
-        results = query2.all()
-        df = pd.DataFrame(results).rename(columns={'category_id' : 'liked'})
-        df.loc[df['liked'].isna() == False, 'liked'] = True
-        df['liked'] = df['liked'].fillna(False)
+        dtos = category_service.find_by_name_containing_with_liked(name, current_user.id)
     else:
-        results = query.all()
-        df = pd.DataFrame(results)
-    return df.to_json(index=False, orient='records'), {'Content-Type': 'application/json'}
+        dtos = category_service.find_by_name_containing(name)
+    list_with_json = [dto.to_json() for dto in dtos]
+    return jsonify(list_with_json)
 
 @categories_blueprint.get('/me')
 @login_required
 def me():
-    results = db.session.query(LikedCategories.category_id, Category.name).filter(LikedCategories.user_id == current_user.id).join(
-        Category, Category.id == LikedCategories.category_id).all()
-    df = pd.DataFrame(results)
-    return df.to_json(orient='records',index=False), {'Content-Type': 'application/json'}
+    category_service = CategoryService(db.session)
+    dtos = category_service.find_liked_categories(current_user.id)
+    list_with_json = [dto.to_json() for dto in dtos]
+    return jsonify(list_with_json)
 
 @categories_blueprint.post("/like")
 @login_required
