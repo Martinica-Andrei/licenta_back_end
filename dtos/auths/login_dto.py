@@ -1,4 +1,4 @@
-from dtos.convertor import Convertor
+from dtos.converter import Converter
 
 class LoginDto:
     def __init__(self, name: str, password: str, remember_me=False):
@@ -21,10 +21,10 @@ class LoginDto:
             ValidationError: If any validation fails.
         """
         body = {k.lower(): v for k, v in body.items()}
-        Convertor.validate_is_required(body, 'name')
-        Convertor.validate_is_required(body, 'password')
+        Converter.validate_is_required(body, 'name')
+        Converter.validate_is_required(body, 'password')
         if 'remember_me' in body:
-            remember_me = Convertor.convert_bool_from_dict(body, "remember_me")
+            remember_me = Converter.convert_bool_from_dict(body, "remember_me")
         else:
             remember_me = False
         return LoginDto(body['name'], body['password'], remember_me)

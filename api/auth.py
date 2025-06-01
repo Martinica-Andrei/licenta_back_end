@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from dtos.convertor import ValidationError
+from dtos.converter import ValidationError
 from services.auth_service import AuthService
 from services.auth_service import AuthError
 from .api import api_blueprint

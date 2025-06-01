@@ -15,7 +15,7 @@ class ValidationError(Exception):
         return (self.message, self.code)
 
 
-class Convertor:
+class Converter:
 
     @staticmethod
     def convert_bool_from_dict(body: dict, key: str) -> bool:
@@ -77,7 +77,7 @@ class Convertor:
             ValidationError: If value is not an integer.
             ValidationError: If integer is not in `min_inclusive` - `max_inclusive` range.
         """
-        v = Convertor.convert_int_from_dict(body, key)
+        v = Converter.convert_int_from_dict(body, key)
         if v < min_inclusive or v > max_inclusive:
             cap_key = HelperMethods.capitalize_first_letter(key)
             raise ValidationError(

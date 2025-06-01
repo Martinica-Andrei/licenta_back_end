@@ -8,7 +8,7 @@ class UserService:
     def __init__(self, scoped_session: scoped_session):
         self.user_repository = UserRepository(scoped_session)
 
-    def find_by_name(self, name: str) -> GetUserDto:
+    def find_by_name(self, name: str) -> GetUserDto | None:
         """
         Finds user by name.
   
@@ -16,7 +16,7 @@ class UserService:
             name (str): Name of user.
   
         Returns:
-            GetUserDto
+            GetUserDto | None
         """
         model = self.user_repository.find_by_name(name)
         if model is not None:

@@ -1,6 +1,6 @@
 import re
 
-from dtos.convertor import Convertor
+from dtos.converter import Converter
 
 class RegisterDto:
     def __init__(self, name: str, password: str, remember_me=False):
@@ -23,16 +23,16 @@ class RegisterDto:
             ValidationError: If any validation fails.
         """
         body = {k.lower(): v for k, v in body.items()}
-        Convertor.validate_is_required(body, 'name')
-        Convertor.validate_str_len_is_in_range(body, 'name', 1, 50)
-        Convertor.validate_is_alphanumeric_underscore(body, 'name')
+        Converter.validate_is_required(body, 'name')
+        Converter.validate_str_len_is_in_range(body, 'name', 1, 50)
+        Converter.validate_is_alphanumeric_underscore(body, 'name')
         
-        Convertor.validate_is_required(body, 'password')
-        Convertor.validate_str_len_is_in_range(body, 'password', 1, 30)
-        Convertor.validate_has_no_spaces(body, 'password')
+        Converter.validate_is_required(body, 'password')
+        Converter.validate_str_len_is_in_range(body, 'password', 1, 30)
+        Converter.validate_has_no_spaces(body, 'password')
 
         if 'remember_me' in body:
-            remember_me = Convertor.convert_bool_from_dict(body, "remember_me")
+            remember_me = Converter.convert_bool_from_dict(body, "remember_me")
         else:
             remember_me = False
 
