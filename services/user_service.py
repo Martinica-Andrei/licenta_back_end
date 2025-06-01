@@ -1,8 +1,8 @@
-import hashlib
 from sqlalchemy.orm.scoping import scoped_session
 from repositories.user_repository import UserRepository
 from dtos.users.get_user_dto import GetUserDto
 from db_models.user import User
+
 
 class UserService:
     def __init__(self, scoped_session: scoped_session):
@@ -11,10 +11,10 @@ class UserService:
     def find_by_name(self, name: str) -> GetUserDto | None:
         """
         Finds user by name.
-  
+
         Args:
             name (str): Name of user.
-  
+
         Returns:
             GetUserDto | None
         """

@@ -21,12 +21,13 @@ class LikedCategoryService:
         """
         model = self.liked_category_repository.find_by_user_id_category_id(
             dto.user_id, dto.category_id)
-        
+
         # if user likes the category and there is no model, create it
         # otherwise if user doesn't like and there is a model, delete it
         if dto.like:
             if model is None:
-                model = LikedCategories(category_id=dto.category_id, user_id=dto.user_id)
+                model = LikedCategories(
+                    category_id=dto.category_id, user_id=dto.user_id)
                 self.liked_category_repository.create(model)
         elif model is not None:
             self.liked_category_repository.delete(model)

@@ -40,7 +40,7 @@ class CategoryService:
         dtos = [self.map_category_with_rating_view_to_dto(
             view) for view in views]
         return dtos
-    
+
     def find_liked_categories(self, user_id: int) -> list[GetCategoryDto]:
         """
         Finds all categories liked categories from user with `user_id`.

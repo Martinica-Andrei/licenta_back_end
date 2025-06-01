@@ -7,6 +7,7 @@ from db_models.user import User
 from flask_login import login_user
 from flask_wtf.csrf import generate_csrf
 
+
 class AuthError(Exception):
     def __init__(self, message: dict, code=400):
         super().__init__()
@@ -27,10 +28,10 @@ class AuthService:
     def register(self, dto: RegisterDto) -> LoginDto:
         """
         Creates the user.
-  
+
         Args:
             dto (CreateAuthDto): User to create.
-  
+
         Returns:
             GetAuthDto: Updated user values after creation.
 
@@ -51,10 +52,10 @@ class AuthService:
     def login_user(self, dto: LoginDto) -> dict:
         """
         Logins the user.
-  
+
         Args:
             dto (GetAuthDto): User to login.
-  
+
         Returns:
             dict: Dictionary storing a single key named `'csrf_token`'.
 
@@ -82,10 +83,10 @@ class AuthService:
     def hash_password(password: str) -> str:
         """
         Hashes `password` using sha256 and returns the hex as 64 bytes.
-  
+
         Args:
             password (str): Password to hash.
-  
+
         Returns:
             str: Hashed password as 64 byte hex.
         """

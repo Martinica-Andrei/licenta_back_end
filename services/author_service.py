@@ -1,8 +1,8 @@
-import hashlib
 from sqlalchemy.orm.scoping import scoped_session
 from db_models.author import Author
 from dtos.authors.get_author_dto import GetAuthorDto
 from repositories.author_repository import AuthorRepository
+
 
 class AuthorService:
     def __init__(self, scoped_session: scoped_session):
@@ -20,7 +20,8 @@ class AuthorService:
         Returns:
             list[GetAuthorDto]: List of authors.
         """
-        models = self.author_repository.find_by_name_containing(name, offset, limit)
+        models = self.author_repository.find_by_name_containing(
+            name, offset, limit)
         dtos = [self.map_to_dto(model) for model in models]
         return dtos
 

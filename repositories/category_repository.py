@@ -58,6 +58,6 @@ class CategoryRepository:
             list[Category]: List of categories with user rating from `user_id` that have `name`.
         """
         models = self.scoped_session.query(Category).\
-        join(LikedCategories, LikedCategories.category_id == Category.id).\
-        filter(LikedCategories.user_id == user_id).all()
+            join(LikedCategories, LikedCategories.category_id == Category.id).\
+            filter(LikedCategories.user_id == user_id).all()
         return models

@@ -36,7 +36,7 @@ class LikedCategoryRepository:
         self.scoped_session.commit()
         return model
 
-    def delete(self, model : LikedCategories) -> None:
+    def delete(self, model: LikedCategories) -> None:
         """
         Deletes liked_category in db.
 
