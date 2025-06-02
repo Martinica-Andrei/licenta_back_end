@@ -10,6 +10,8 @@ class BookRating(Base):
     user_id = Column(Integer(), ForeignKey('user.id'), nullable=True)
     rating = Column(Enum("Like", "Dislike"), nullable=False)
 
+    book = relationship('Book', back_populates="ratings", lazy="noload")
+
     __table_args__ = (
         UniqueConstraint('book_id', 'user_id', name='unique_book_id_user_id'),
     )

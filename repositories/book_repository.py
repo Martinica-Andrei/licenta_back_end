@@ -5,7 +5,7 @@ from db_models.book_authors import BookAuthors
 from db_models.book_rating import BookRating
 from repositories.helper_methods import HelperMethods
 import sqlalchemy as sa
-from sqlalchemy.orm import selectinload, with_loader_criteria, joinedload, subqueryload
+from sqlalchemy.orm import selectinload, with_loader_criteria
 
 
 class BookRepository:

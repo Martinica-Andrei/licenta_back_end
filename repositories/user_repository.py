@@ -1,5 +1,8 @@
 from sqlalchemy.orm.scoping import scoped_session
+from db_models.book import Book
+from db_models.book_rating import BookRating
 from db_models.user import User
+from sqlalchemy.orm import selectinload, with_loader_criteria
 
 
 class UserRepository:
@@ -31,4 +34,18 @@ class UserRepository:
         """
         self.scoped_session.add(model)
         self.scoped_session.commit()
+        return model
+
+    def find_by_id_with_book_rating(self, id: int) -> User | None:
+        """
+        Finds user by id with books that he rated.
+
+        Args:
+            id (int): User id.
+
+        Returns:
+            GetUserDto | None
+        """
+        model = self.scoped_session.query(User).where(User.id == id).\
+            options(selectinload(User.book_ratings).selectinload(BookRating.book)).first()
         return model
