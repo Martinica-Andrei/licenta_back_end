@@ -185,3 +185,23 @@ class Converter:
             values_str = ', '.join(values)
             raise ValidationError(
                 {key: f"{cap_key} must be {values_str}!"}, 400)
+
+    @staticmethod
+    def validate_is_list(body: dict, key: str) -> None:
+        """
+        Checks if `body[key]` is list.
+
+        Args:
+            body (dict): Dictionary that contains `key`.
+            key (str): Key to access value in `body`.
+
+        Returns:
+            None.
+
+        Raises:
+            ValidationError: If `body[key]` is not list.
+        """
+        if type(body[key]) is not list:
+            cap_key = HelperMethods.capitalize_first_letter(key)
+            raise ValidationError(
+                {key: f"{cap_key} must be a list!"}, 400)

@@ -2,7 +2,6 @@ from lightfm import LightFM
 import joblib
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from sklearn.preprocessing import LabelEncoder
 from scipy.sparse import load_npz, save_npz, csr_matrix
 import utils
 from most_common_words import MostCommonWords
@@ -32,7 +31,8 @@ def user_preprocessing():
 def item_preprocessing():
     return _item_preprocessing
 
-def model_item_representations():
+def model_item_representations() -> np.ndarray:
+    """Returns the concatenation between bias and embedding for each item from `model`."""
     bias, components = model.get_item_representations(_item_features) 
     return np.concatenate([bias.reshape(-1,1), components], axis=1)
 
@@ -72,7 +72,11 @@ def get_nr_items_features():
     return _item_features.shape[1]
 
 def get_length_common_features_items():
+    #each item has 1 unique feature
+    #therefore by subtracting nr items from features results in number ofcommon features
     return get_nr_items_features() - get_nr_items()
 
 def get_length_common_features_users():
+    #each user has 1 unique feature
+    #therefore by subtracting nr user from features results in number of common features
     return get_nr_user_features() - get_nr_users()

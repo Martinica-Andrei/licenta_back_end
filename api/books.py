@@ -1,8 +1,11 @@
 from flask import request, Blueprint
 import pandas as pd
 from dtos.book_ratings.post_book_rating_dto import PostBookRatingDto
+from dtos.books.book_recomendation_by_content_dto import BookRecommendationByContentDto
+from dtos.books.book_recommendation_by_id_dto import BookRecommendationByIdDto
 from dtos.books.search_book_dto import SearchBookDto
 from dtos.converter import ValidationError
+from repositories.book_recommender_repository import BookRecommenderRepository
 from services.book_rating_service import BookRatingError, BookRatingService
 from services.book_service import BookService
 from load_book_recommendation_model import (neighbors,
@@ -31,21 +34,6 @@ books_blueprint = Blueprint('books', __name__,
                             url_prefix='/books')
 api_blueprint.register_blueprint(books_blueprint)
 
-
-def validate_recommendations(body):
-    if 'content' not in body:
-        return {'content': 'Content is required!'}, 400
-    if 'authors' not in body:
-        body['authors'] = []
-    elif type(body['authors']) is not list:
-        return {'authors': 'Authors must be an array!'}, 400
-    if 'categories' not in body:
-        body['categories'] = []
-    elif type(body['categories']) is not list:
-        return {'categories': 'Categories must be an array!'}, 400
-    return True
-
-
 @books_blueprint.get("/search")
 def search():
     try:
@@ -63,35 +51,18 @@ def search():
 def books_recommendations():
     if request.method == 'GET':
         try:
-            id = int(request.args.get('id'))
-        except:
-            return {"err": "Query string id is required."}, 400
-        with books_model_memory_change_lock.gen_rlock():
-            item_representations = model_item_representations()
-            if id < 0 or id >= len(item_representations):
-                return {"err": f"Invalid id : {id}"}, 400
-            target_item = item_representations[id:id+1]
-            indices = neighbors.kneighbors(
-                target_item, return_distance=False)[0]
+            dto = BookRecommendationByIdDto.convert_from_dict(request.args)
+        except ValidationError as err:
+            return err.to_tuple()
+        id = dto.id
+        indices = BookRecommenderRepository.find_nearest_neighbors_by_id(id)
     else:
         body = request.get_json()
-        body = {k.lower(): v for k, v in body.items()}
-        validation_result = validate_recommendations(body)
-        if validation_result != True:
-            return validation_result
-        content, categories, authors = body['content'], body['categories'], body['authors']
-        feature_df = pd.DataFrame({'content': [content], 'categories': [
-                                  categories], 'authors': [authors]})
-        transformed = item_preprocessing().transform(feature_df)
-        with books_model_memory_change_lock.gen_rlock():
-            nr_zeros_to_add = item_features().shape[1] - transformed.shape[1]
-            transformed = hstack(
-                [transformed, csr_matrix((1, nr_zeros_to_add))])
-            bias, components = model.get_item_representations(transformed)
-            item_representations = np.concatenate(
-                [bias.reshape(-1, 1), components], axis=1)
-            indices = neighbors.kneighbors(
-                item_representations, return_distance=False)[0]
+        try:
+            dto = BookRecommendationByContentDto.convert_from_dict(body)
+        except ValidationError as err:
+            return err.to_tuple()
+        indices = BookRecommenderRepository.get_nearest_neighbors_by_content(dto.content, dto.categories, dto.authors)
 
     indices = indices.tolist()
     grp_conc_sep = ' | '
