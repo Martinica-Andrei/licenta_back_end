@@ -71,7 +71,7 @@ class BookRecommenderService:
         image = BookImageRepository.convert_image_base64(model.image_link)
         rating = model.ratings[0].rating if len(model.ratings) > 0 else None
         categories = [category.name for category in model.categories]
-        authors = [{author.author.name : author.role} for author in model.authors]
+        authors = {author.author.name : author.role for author in model.authors}
 
         return GetBookDto(model.id,
                           model.title,
