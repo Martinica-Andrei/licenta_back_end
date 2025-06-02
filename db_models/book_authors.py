@@ -10,4 +10,4 @@ class BookAuthors(Base):
     book_id = Column(Integer(), ForeignKey('book.id'), nullable=False)
     role = Column(String(500), nullable=True)
 
-    book = relationship('Book', back_populates='authors')
+    author = relationship('Author')

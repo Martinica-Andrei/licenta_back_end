@@ -17,27 +17,10 @@ class Book(Base):
     nr_likes = Column(Integer, nullable=False, server_default='0')
     nr_dislikes = Column(Integer, nullable=False, server_default='0')
 
-    authors = relationship('BookAuthors', back_populates='book')
-    categories = relationship('BookCategories', back_populates='book')
-    ratings = relationship('BookRating', back_populates='book')
+    authors = relationship('BookAuthors')
+    categories = relationship('Category', secondary="book_categories")
+    ratings = relationship('BookRating', lazy="noload")
 
     __table_args__ = (
         Index('ix_fulltext_title', 'title', mysql_prefix='FULLTEXT'),
     )
-
-    @staticmethod
-    def get_image_base64(filename):
-        if type(filename) not in [str, Path]:
-            return None
-        filepath: Path = utils.BOOKS_DATA_IMAGES / filename
-        if filepath.is_file():
-            with open(filepath, 'rb') as file:
-                binary_data = file.read()
-                base64_bytes = base64.b64encode(binary_data)
-                base64_str = base64_bytes.decode('utf-8')
-                return base64_str
-        else:
-            return None
-
-    def image_base64(self):
-        return Book.get_image_base64(self.image_link)

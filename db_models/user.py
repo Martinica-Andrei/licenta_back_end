@@ -9,5 +9,3 @@ class User(Base, UserMixin):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False, unique=True)
     password = Column(String(64), nullable=False)
-
-    book_ratings = relationship('BookRating', back_populates='user')

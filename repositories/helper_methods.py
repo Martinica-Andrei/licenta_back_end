@@ -17,6 +17,8 @@ class HelperMethods:
         # keep only \w
         x = re.sub(r'\W', ' ', x)
         x = x.strip()
+        if len(x) == 0:
+            return '', []
         x = re.split(r'\s+', x)
         # + means the word must be present and * match any other characters after the word
         # for full text search in mysql

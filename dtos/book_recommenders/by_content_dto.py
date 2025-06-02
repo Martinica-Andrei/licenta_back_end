@@ -1,22 +1,23 @@
 from dtos.converter import Converter
 
 
-class BookRecommendationByContentDto:
-    def __init__(self, content: str, authors: list[str], categories: list[str]):
+class ByContentDto:
+    def __init__(self, content: str, authors: list[str], categories: list[str], user_id : int | None = None):
         self.content = content
         self.authors = authors
         self.categories = categories
+        self.user_id = user_id
 
     @staticmethod
-    def convert_from_dict(body: dict) -> "BookRecommendationByContentDto":
+    def convert_from_dict(body: dict, user_id : int | None = None) -> "ByContentDto":
         """
-        Converts dict to BookRecommendationByContentDto.
+        Converts dict to ByContentDto.
 
         Args:
             body (dict): Dictionary to be converted.
 
         Returns:
-            BookRecommendationByContentDto.
+            ByContentDto.
 
         Raises:
             ValidationError: If any validation fails.
@@ -32,4 +33,4 @@ class BookRecommendationByContentDto:
             Converter.validate_is_list(body, 'authors')
             authors = [str(v) for v in body['authors']]
             
-        return BookRecommendationByContentDto(content, authors, categories)
+        return ByContentDto(content, authors, categories, user_id)

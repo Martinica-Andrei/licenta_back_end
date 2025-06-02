@@ -8,5 +8,3 @@ class BookCategories(Base):
     id = Column(Integer, primary_key=True)
     category_id = Column(Integer(), ForeignKey('category.id'), nullable=False)
     book_id = Column(Integer(), ForeignKey('book.id'), nullable=False)
-
-    book = relationship('Book', back_populates='categories')
