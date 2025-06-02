@@ -20,6 +20,7 @@ api_blueprint.register_blueprint(books_blueprint)
 
 @books_blueprint.get("/search")
 def search():
+    "Searches book by title."
     try:
         dto = SearchBookDto.convert_from_dict(request.args, '', 100)
     except ValidationError as err:
@@ -32,6 +33,7 @@ def search():
 
 @books_blueprint.get("/recommendations")
 def books_recommendations_by_id():
+    """Gets recommendations using id."""
     user_id = current_user.id if current_user.is_authenticated else None
     try:
         dto = ByIdDto.convert_from_dict(request.args, user_id)
@@ -49,6 +51,7 @@ def books_recommendations_by_id():
 @books_blueprint.post("/recommendations")
 @csrf.exempt
 def books_recommendations_by_content():
+    """Gets recommendations using content."""
     user_id = current_user.id if current_user.is_authenticated else None
     body = request.get_json()
     try:
@@ -65,6 +68,7 @@ def books_recommendations_by_content():
 @books_blueprint.post("/rate")
 @login_required
 def rate_book():
+    """User rates book."""
     body = request.get_json()
     try:
         dto = PostBookRatingDto.convert_from_dict(body, current_user.id)
