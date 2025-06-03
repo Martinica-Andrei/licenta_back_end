@@ -44,31 +44,39 @@ def refit_neighbors():
 refit_neighbors()
 
 def item_features():
+    "Gets item_features."
     return _item_features
 
 def user_features():
+    """Gets user features."""
     return _user_features
 
 def set_item_features(item_features):
+    "Sets and saves item features."
     global _item_features
     _item_features = item_features
     save_npz(utils.BOOKS_DATA_ITEM_FEATURES, _item_features)
 
 def set_user_features(user_features):
+    "Sets and saves user features."
     global _user_features
     _user_features = user_features
     save_npz(utils.BOOKS_DATA_USER_FEATURES, _user_features)
 
 def get_nr_users():
+    """Gets nr of users from features."""
     return _user_features.shape[0]
 
 def get_nr_user_features():
+    """Gets nr of user features from features."""
     return _user_features.shape[1]
 
 def get_nr_items():
+    """Gets nr of items from features."""
     return _item_features.shape[0]
 
 def get_nr_items_features():
+    """Gets nr of item features from features."""
     return _item_features.shape[1]
 
 def get_length_common_features_items():

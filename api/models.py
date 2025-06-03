@@ -1,4 +1,6 @@
 from flask import Blueprint, g, json
+
+from repositories.book_image_repository import BookImageRepository
 from .api import api_blueprint
 from db import db
 from lightfm import LightFM
@@ -29,6 +31,7 @@ from flask_login import login_required, current_user
 import sqlalchemy as sa
 from custom_precision_at_k import custom_precision_at_k
 from thread_locks import books_model_memory_change_lock
+from repositories.lightfm_repository import LightfmRepository
 
 models_blueprint = Blueprint('models', __name__,
                              url_prefix='/models')
@@ -38,55 +41,6 @@ books_train_on_user_lock = threading.Lock()
 
 TARGET_PRECISION = 0.4
 MINIMUM_POSITIVE_RATINGS = 1
-
-def add_new_users(model: LightFM, user_id):
-
-    # nr_users for user_features
-    nr_users = get_nr_users()
-    nr_users_to_add = user_id - (nr_users - 1)
-    if nr_users_to_add > 0:
-        user_features_hstack = hstack([user_features(), csr_matrix((user_features().shape[0], nr_users_to_add))])
-        new_user_features = identity(nr_users_to_add)
-        new_user_features = hstack([csr_matrix((nr_users_to_add, user_features().shape[1])), new_user_features])
-        new_user_features = vstack([user_features_hstack, new_user_features])
-        new_user_features = csr_matrix(new_user_features)
-        set_user_features(new_user_features)
-    # nr_users for model_embeddings
-    unique_embeddings_len = model.user_embeddings.shape[0] - get_length_common_features_users()
-    nr_users_to_add = user_id - (unique_embeddings_len - 1)
-    if nr_users_to_add > 0:
-        add_new_user_embeddings(model, nr_users_to_add)
-
-
-def add_new_user_embeddings(model: LightFM, nr_users_to_add):
-    new_user_embedding_gradients = np.zeros(
-        (nr_users_to_add, model.no_components))
-    new_user_embedding_momentum = np.zeros(
-        (nr_users_to_add, model.no_components))
-
-    new_user_bias_gradients = np.zeros(nr_users_to_add)
-    zeros_bias = np.zeros(nr_users_to_add)
-
-    if model.learning_schedule == "adagrad":
-        new_user_embedding_gradients += 1
-        new_user_bias_gradients += 1
-
-    random_state = model.random_state
-    no_components = model.no_components
-
-    model.user_embeddings = np.concatenate([model.user_embeddings, (random_state.rand(nr_users_to_add, no_components) - 0.5)
-            / no_components], axis=0, dtype=np.float32)
-    model.user_embedding_gradients = np.concatenate(
-        [model.user_embedding_gradients, new_user_embedding_gradients], axis=0, dtype=np.float32)
-    model.user_embedding_momentum = np.concatenate(
-        [model.user_embedding_momentum, new_user_embedding_momentum], axis=0, dtype=np.float32)
-    model.user_biases = np.concatenate(
-        [model.user_biases, zeros_bias], axis=0, dtype=np.float32)
-    model.user_bias_gradients = np.concatenate(
-        [model.user_bias_gradients, new_user_bias_gradients], axis=0, dtype=np.float32)
-    model.user_bias_momentum = np.concatenate(
-        [model.user_bias_momentum, zeros_bias], axis=0, dtype=np.float32)
-
 
 def reset_user_gradients(user_id):
     nr_common_features = get_length_common_features_users()
@@ -182,7 +136,7 @@ def compute_user_precision(model, nr_positive_ratings, y, item_features, user_fe
 
 def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
     with books_train_on_user_lock:
-        add_new_users(model, user_id)
+        LightfmRepository.add_new_users(user_id)
         reset_user_gradients(user_id)
 
         user_feature = concat_categories_user_feature(user_categories, user_id)
@@ -196,10 +150,12 @@ def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
         max_percentage = 0
         precision = compute_user_precision(
             single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_feature_ones)
+        print("start training")
         while precision < TARGET_PRECISION:
-            single_user_model.fit_partial(y, item_features=item_features(), user_features=user_feature_ones, epochs=10, num_threads=8)
+            single_user_model.fit_partial(y, item_features=item_features(), user_features=user_feature_ones, epochs=1000, num_threads=8)
             precision = compute_user_precision(
                 single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_feature_ones)
+            print("precision: ", precision)
             percentage = round(precision / TARGET_PRECISION, 2)
             percentage = min(1, percentage)
             if percentage > max_percentage:
@@ -282,7 +238,7 @@ def books_recommendations():
 
     df = pd.DataFrame(books)
     df.rename(columns={'image_link': 'image'}, inplace=True)
-    df['image'] = df['image'].apply(Book.get_image_base64)
+    df['image'] = df['image'].apply(lambda x : BookImageRepository.convert_image_base64(x))
     df.set_index('id', inplace=True)
     df = df.reindex(index=p_indices_sorted)
     df.reset_index(inplace=True)
