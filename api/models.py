@@ -42,58 +42,6 @@ books_train_on_user_lock = threading.Lock()
 TARGET_PRECISION = 0.4
 MINIMUM_POSITIVE_RATINGS = 1
 
-def reset_user_gradients(user_id):
-    nr_common_features = get_length_common_features_users()
-    model.user_embedding_gradients[nr_common_features + user_id] = np.ones(model.no_components)
-    model.user_bias_gradients[nr_common_features + user_id] = 1
-
-
-def new_model_with_single_user(user_feature):
-    user_feature = user_feature.nonzero()[1]
-    new_model = LightFM()
-    new_model.set_params(**model.get_params())
-    new_model.item_biases = model.item_biases.copy()
-    new_model.item_embeddings = model.item_embeddings.copy()
-
-    new_model.item_bias_gradients = model.item_bias_gradients.copy()
-    new_model.item_embedding_gradients = model.item_embedding_gradients.copy()
-    new_model.item_bias_momentum = model.item_bias_momentum.copy()
-    new_model.item_embedding_momentum = model.item_embedding_momentum.copy()
-
-    new_model.user_biases = model.user_biases[user_feature].copy()
-    new_model.user_embeddings = model.user_embeddings[user_feature].copy(
-    )
-
-    new_model.user_bias_gradients = model.user_bias_gradients[user_feature].copy(
-    )
-    new_model.user_embedding_gradients = model.user_embedding_gradients[user_feature].copy(
-    )
-    new_model.user_bias_momentum = model.user_bias_momentum[user_feature].copy(
-    )
-    new_model.user_embedding_momentum = model.user_embedding_momentum[user_feature].copy(
-    )
-
-    return new_model
-
-
-def transfer_data_from_new_model_to_model(new_model, model, user_feature):
-    user_feature = user_feature.nonzero()[1]
-    model.item_biases = new_model.item_biases.copy()
-    model.item_embeddings = new_model.item_embeddings.copy()
-
-    model.item_bias_gradients = new_model.item_bias_gradients.copy()
-    model.item_embedding_gradients = new_model.item_embedding_gradients.copy()
-    model.item_bias_momentum = new_model.item_bias_momentum.copy()
-    model.item_embedding_momentum = new_model.item_embedding_momentum.copy()
-
-    model.user_biases[user_feature] = new_model.user_biases.copy()
-    model.user_embeddings[user_feature] = new_model.user_embeddings.copy()
-
-    model.user_bias_gradients[user_feature] = new_model.user_bias_gradients.copy()
-    model.user_embedding_gradients[user_feature] = new_model.user_embedding_gradients.copy()
-    model.user_bias_momentum[user_feature] = new_model.user_bias_momentum.copy()
-    model.user_embedding_momentum[user_feature] = new_model.user_embedding_momentum.copy()
-    
 def get_user_categories(user_id):
     # sqlalchemy must have columns from all joins therefore include LikedCategories.category_id
     # then discard it
@@ -137,10 +85,10 @@ def compute_user_precision(model, nr_positive_ratings, y, item_features, user_fe
 def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
     with books_train_on_user_lock:
         LightfmRepository.add_new_users(user_id)
-        reset_user_gradients(user_id)
+        LightfmRepository.reset_user_gradients(user_id)
 
         user_feature = concat_categories_user_feature(user_categories, user_id)
-        single_user_model = new_model_with_single_user(user_feature)
+        single_user_model = LightfmRepository.new_model_with_single_user(user_feature)
 
         y = convert_positive_book_ratings_to_csr(
             positive_book_ratings, 1, 0)
@@ -163,7 +111,7 @@ def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
                 data = {'percentage': max_percentage}
                 yield json.dumps(data) + '\n'
         with books_model_memory_change_lock.gen_wlock():
-            transfer_data_from_new_model_to_model(
+            LightfmRepository.transfer_data_from_new_model_to_model(
                 single_user_model, model, user_feature)
             refit_neighbors()
             joblib.dump(model, utils.BOOKS_DATA_MODEL)

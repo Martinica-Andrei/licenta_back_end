@@ -6,19 +6,108 @@ from load_book_recommendation_model import (model,
                                             get_length_common_features_users)
 import numpy as np
 from scipy.sparse import hstack, csr_matrix, identity, vstack
+from lightfm import LightFM
 
 
 class LightfmRepository:
 
     @staticmethod
-    def add_new_users(user_id: int):
-        nr_user_features_to_add = LightfmRepository.__get_nr_user_features_to_add(user_id)
+    def add_new_users(user_id: int) -> None:
+        """Adds new user features and user embeddings, gradients, momentum."""
+        nr_user_features_to_add = LightfmRepository.__get_nr_user_features_to_add(
+            user_id)
         if nr_user_features_to_add > 0:
             LightfmRepository.__add_new_user_features(nr_user_features_to_add)
 
-        nr_user_embeddings_to_add = LightfmRepository.__get_nr_user_embeddings_to_add(user_id)
+        nr_user_embeddings_to_add = LightfmRepository.__get_nr_user_embeddings_to_add(
+            user_id)
         if nr_user_embeddings_to_add > 0:
-            LightfmRepository.__add_new_user_embeddings(nr_user_embeddings_to_add)
+            LightfmRepository.__add_new_user_embeddings(
+                nr_user_embeddings_to_add)
+
+    @staticmethod
+    def reset_user_gradients(user_id: int) -> None:
+        """Resets bias and embedding gradients to 0 for `user_id`."""
+        nr_common_features = get_length_common_features_users()
+        model.user_embedding_gradients[nr_common_features +
+                                       user_id] = np.ones(model.no_components)
+        model.user_bias_gradients[nr_common_features + user_id] = 1
+
+    @staticmethod
+    def new_model_with_single_user(user_feature: csr_matrix) -> LightFM:
+        """
+        Creates and returns a new lightFM model with embeddings from features of a single user and all item embeddings.
+
+        Args:
+            user_feature (csr_matrix): csr_matrix of single row containing features for this user.
+
+        Returns:
+            LightFM.
+        """
+        # get indices of features
+        feature_indices = user_feature.nonzero()[1]
+        new_model = LightFM()
+
+        # copy params to new model
+        new_model.set_params(**model.get_params())
+
+        # copy all item biases, embeddings
+        new_model.item_biases = model.item_biases.copy()
+        new_model.item_embeddings = model.item_embeddings.copy()
+
+        # copy all item, embedding gradients, momentum
+        new_model.item_bias_gradients = model.item_bias_gradients.copy()
+        new_model.item_embedding_gradients = model.item_embedding_gradients.copy()
+        new_model.item_bias_momentum = model.item_bias_momentum.copy()
+        new_model.item_embedding_momentum = model.item_embedding_momentum.copy()
+
+        new_model.user_biases = model.user_biases[feature_indices].copy()
+        new_model.user_embeddings = model.user_embeddings[feature_indices].copy(
+        )
+
+        new_model.user_bias_gradients = model.user_bias_gradients[feature_indices].copy(
+        )
+        new_model.user_embedding_gradients = model.user_embedding_gradients[feature_indices].copy(
+        )
+        new_model.user_bias_momentum = model.user_bias_momentum[feature_indices].copy(
+        )
+        new_model.user_embedding_momentum = model.user_embedding_momentum[feature_indices].copy(
+        )
+
+        return new_model
+    
+    @staticmethod
+    def transfer_data_from_new_model_to_model(new_model : LightFM, model : LightFM, user_feature : csr_matrix) -> None:
+        """
+        Copies all `user_feature` embeddings, gradients, momentum from `new_model` to `model`. Also copies trained item embeddings, gradients, momentum.
+
+        Args:
+            new_model (LightFM): Model trained on only one user feature from `user_feature`.
+            model (LightFM): Model with all user features.
+            user_feature (csr_matrix): csr_matrix of single row containing features for this user.
+
+        Returns:
+            None.
+        """
+        feature_indices = user_feature.nonzero()[1]
+        # new_model has the same size for item features, therefore copy all because they have been updated
+        model.item_biases = new_model.item_biases.copy()
+        model.item_embeddings = new_model.item_embeddings.copy()
+
+        model.item_bias_gradients = new_model.item_bias_gradients.copy()
+        model.item_embedding_gradients = new_model.item_embedding_gradients.copy()
+        model.item_bias_momentum = new_model.item_bias_momentum.copy()
+        model.item_embedding_momentum = new_model.item_embedding_momentum.copy()
+
+        # copy modified user biases, embeddings, gradients momentum
+        model.user_biases[feature_indices] = new_model.user_biases.copy()
+        model.user_embeddings[feature_indices] = new_model.user_embeddings.copy()
+
+        model.user_bias_gradients[feature_indices] = new_model.user_bias_gradients.copy()
+        model.user_embedding_gradients[feature_indices] = new_model.user_embedding_gradients.copy()
+        model.user_bias_momentum[feature_indices] = new_model.user_bias_momentum.copy()
+        model.user_embedding_momentum[feature_indices] = new_model.user_embedding_momentum.copy()
+    
 
     @staticmethod
     def __add_new_user_embeddings(nr_users_to_add: int) -> None:
@@ -115,7 +204,7 @@ class LightfmRepository:
         return nr_features_to_add
 
     @staticmethod
-    def __get_nr_user_embeddings_to_add(user_id: int):
+    def __get_nr_user_embeddings_to_add(user_id: int) -> None:
         """
         Gets number of user embeddings to add for each new user by computing the distance between user_id and (unique embeddings - 1) from model.
 
