@@ -212,7 +212,8 @@ class BookRecommenderService:
         """
         while BookRecommenderService.__curent_user_training_id != -1:
             BookRecommenderService.__event_training_progress_changed.wait()
-            yield json.dumps(BookRecommenderService.__current_user_training_progress) + '\n'
+            v = {'percentage': BookRecommenderService.__current_user_training_progress}
+            yield json.dumps(v) + '\n'
             BookRecommenderService.__event_training_progress_changed.clear()
         BookRecommenderService.__event_training_progress_changed.set()
 
