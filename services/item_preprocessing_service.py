@@ -40,10 +40,11 @@ class ItemPreprocessingService:
             csr_matrix: Csr matrix of shape single row and all book ids as columns, where `positive_book_ratings` ids are set to 1 while others are set to 0.
         """
         ones = np.ones_like(positive_book_ratings)
-        row_zeros = np.zeros_like(positive_book_ratings)
+        rows = np.zeros_like(positive_book_ratings)
+        columns = [book.id for book in positive_book_ratings]
 
         nr_books = self.item_features_repository.get_nr_items()
-        y = csr_matrix((ones, (row_zeros, positive_book_ratings)),
+        y = csr_matrix((ones, (rows, columns)),
                     shape=(1, nr_books), dtype=int)
         return y
 

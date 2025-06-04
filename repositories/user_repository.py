@@ -63,7 +63,6 @@ class UserRepository:
         Returns:
             list[Book].
         """
-
         return self.scoped_session.query(Book).\
         join(BookRating, BookRating.book_id == Book.id).\
         where(BookRating.user_id == id).all()

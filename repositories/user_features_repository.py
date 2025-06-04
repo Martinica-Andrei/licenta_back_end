@@ -21,11 +21,11 @@ class UserFeaturesRepository:
 
     def get_nr_users(self) -> int:
         """Gets nr of users from features."""
-        return self.__features[0]
+        return self.__features.shape[0]
 
     def get_nr_features(self) -> int:
         """Gets nr of user features from features."""
-        return self.__features[1]
+        return self.__features.shape[1]
 
     def get_nr_common_features(self) -> int:
         """Get number of common features from features."""

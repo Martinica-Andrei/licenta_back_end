@@ -53,6 +53,16 @@ class LightfmService:
         return (self.user_features_repository.get_nr_user_features_to_add(user_id) <= 0) and\
             (self.__get_nr_user_embeddings_to_add(user_id) <= 0)
 
+    def add_user_embeddings_if_feature_mismatch(self) -> None:
+        """
+        Adds embeddings to users to match the number of features
+        """
+        # this method exists because in rare cases, embeddings from add_new_users will be discarded
+        # because they are not saved immediately.
+        nr_embeddings_to_add = self.__get_user_embedding_feature_size_mismatch()
+        if nr_embeddings_to_add > 0:
+            self.lightfm_repository.add_new_user_embeddings(nr_embeddings_to_add)
+
     def add_new_users(self, user_id: int) -> None:
         """
         Checks if user_id is added, if not add new user features and user embeddings, gradients, momentum.
@@ -64,17 +74,19 @@ class LightfmService:
             None.
 
         """
+        # warning, in some cases user features will be added while embeddings won't be added
         nr_user_features_to_add = self.user_features_repository.get_nr_user_features_to_add(
             user_id)
         if nr_user_features_to_add > 0:
-            self.user_features_repository.add_new_user_features(nr_user_features_to_add)
+            self.user_features_repository.add_new_user_features(
+                nr_user_features_to_add)
 
         nr_user_embeddings_to_add = self.__get_nr_user_embeddings_to_add(
             user_id)
         if nr_user_embeddings_to_add > 0:
-            self.lightfm_repository.__add_new_user_embeddings(
+            self.lightfm_repository.add_new_user_embeddings(
                 nr_user_embeddings_to_add)
-            
+
     def reset_user_gradients(self, user_id: int) -> None:
         """Resets bias and embedding gradients to 0 for `user_id`."""
         nr_common_features = self.user_features_repository.get_nr_common_features()
@@ -106,10 +118,26 @@ class LightfmService:
         Returns:
             None.
         """
-        model = self.lightfm_repository.get_model()
         # user_embeddings also has common embeddings, therefore remove them
-        unique_embeddings_len = model.user_embeddings.shape[0] - \
-            self.user_features_repository.get_nr_common_features()
+        unique_embeddings_len = self.__get_number_of_unique_embeddings()
         # user id starts count from 0 while unique_embeddings_len starts from 1, therefore subtract 1 from embeddings
         nr_embeddings_to_add = user_id - (unique_embeddings_len - 1)
         return nr_embeddings_to_add
+
+    def __get_number_of_unique_embeddings(self) -> int:
+        """Get number of embeddings that are associated with unique features."""
+        model = self.lightfm_repository.get_model()
+        return model.user_embeddings.shape[0] - \
+            self.user_features_repository.get_nr_common_features()
+
+    def __get_user_embedding_feature_size_mismatch(self) -> int:
+        """
+        Gets how many more features there are than embeddings.
+
+        Returns:
+            bool.
+        """
+        nr_features = self.user_features_repository.get_nr_features()
+        nr_embeddings = self.lightfm_repository.get_model(
+        ).user_embeddings.shape[0]
+        return nr_features - nr_embeddings
