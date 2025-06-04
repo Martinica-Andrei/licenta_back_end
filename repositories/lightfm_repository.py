@@ -13,7 +13,16 @@ class LightfmRepository:
 
     @staticmethod
     def add_new_users(user_id: int) -> None:
-        """Adds new user features and user embeddings, gradients, momentum."""
+        """
+        Checks if user_id is added, if not add new user features and user embeddings, gradients, momentum.
+
+        Args:
+            user_id (int): Computes distance between current_features/embeddings and user id.
+
+        Returns:
+            None.
+
+        """
         nr_user_features_to_add = LightfmRepository.__get_nr_user_features_to_add(
             user_id)
         if nr_user_features_to_add > 0:
@@ -24,6 +33,20 @@ class LightfmRepository:
         if nr_user_embeddings_to_add > 0:
             LightfmRepository.__add_new_user_embeddings(
                 nr_user_embeddings_to_add)
+
+    @staticmethod
+    def is_user_added(user_id: int) -> bool:
+        """
+        Check user embeddings and user features to see if `user_id` is added.
+
+        Args:
+            user_id (int): User id.
+
+        Returns:
+            bool.
+        """
+        return (LightfmRepository.__get_nr_user_features_to_add(user_id) <= 0) and\
+            (LightfmRepository.__get_nr_user_embeddings_to_add(user_id) <= 0)
 
     @staticmethod
     def reset_user_gradients(user_id: int) -> None:
@@ -75,9 +98,9 @@ class LightfmRepository:
         )
 
         return new_model
-    
+
     @staticmethod
-    def transfer_data_from_new_model_to_model(new_model : LightFM, model : LightFM, user_feature : csr_matrix) -> None:
+    def transfer_data_from_new_model_to_model(new_model: LightFM, model: LightFM, user_feature: csr_matrix) -> None:
         """
         Copies all `user_feature` embeddings, gradients, momentum from `new_model` to `model`. Also copies trained item embeddings, gradients, momentum.
 
@@ -101,13 +124,17 @@ class LightfmRepository:
 
         # copy modified user biases, embeddings, gradients momentum
         model.user_biases[feature_indices] = new_model.user_biases.copy()
-        model.user_embeddings[feature_indices] = new_model.user_embeddings.copy()
+        model.user_embeddings[feature_indices] = new_model.user_embeddings.copy(
+        )
 
-        model.user_bias_gradients[feature_indices] = new_model.user_bias_gradients.copy()
-        model.user_embedding_gradients[feature_indices] = new_model.user_embedding_gradients.copy()
-        model.user_bias_momentum[feature_indices] = new_model.user_bias_momentum.copy()
-        model.user_embedding_momentum[feature_indices] = new_model.user_embedding_momentum.copy()
-    
+        model.user_bias_gradients[feature_indices] = new_model.user_bias_gradients.copy(
+        )
+        model.user_embedding_gradients[feature_indices] = new_model.user_embedding_gradients.copy(
+        )
+        model.user_bias_momentum[feature_indices] = new_model.user_bias_momentum.copy(
+        )
+        model.user_embedding_momentum[feature_indices] = new_model.user_embedding_momentum.copy(
+        )
 
     @staticmethod
     def __add_new_user_embeddings(nr_users_to_add: int) -> None:

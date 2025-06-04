@@ -1,6 +1,8 @@
 from sqlalchemy.orm.scoping import scoped_session
 from db_models.book import Book
 from db_models.book_rating import BookRating
+from db_models.category import Category
+from db_models.liked_categories import LikedCategories
 from db_models.user import User
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
@@ -17,7 +19,7 @@ class UserRepository:
             name (str): Name of user.
 
         Returns:
-            User | None
+            User | None.
         """
         user = self.scoped_session.query(User).where(User.name == name).first()
         return user
@@ -44,8 +46,39 @@ class UserRepository:
             id (int): User id.
 
         Returns:
-            GetUserDto | None
+            User | None.
         """
         model = self.scoped_session.query(User).where(User.id == id).\
-            options(selectinload(User.book_ratings).selectinload(BookRating.book)).first()
+            options(selectinload(User.book_ratings).selectinload(
+                BookRating.book)).first()
         return model
+    
+    def find_liked_books(self, id: int) -> list[Book]:
+        """
+        Find liked books for user with `id`.
+
+        Args:
+            id (int): User id.
+
+        Returns:
+            list[Book].
+        """
+
+        return self.scoped_session.query(Book).\
+        join(BookRating, BookRating.book_id == Book.id).\
+        where(BookRating.user_id == id).all()
+
+    def find_liked_categories(self, id: int) -> list[Category]:
+        """
+        Finds liked categories for user with `id`.
+
+        Args:
+            id (int): User id.
+
+        Returns:
+            list[Category].
+        """
+
+        return self.scoped_session.query(Category).\
+            join(LikedCategories, LikedCategories.category_id == Category.id).\
+            where(LikedCategories.user_id == id).all()

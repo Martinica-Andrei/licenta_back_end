@@ -1,6 +1,8 @@
 from flask import Blueprint, g, json
 
 from repositories.book_image_repository import BookImageRepository
+from repositories.book_recommender_repository import BookRecommenderRepository
+from repositories.user_repository import UserRepository
 from .api import api_blueprint
 from db import db
 from lightfm import LightFM
@@ -43,10 +45,7 @@ TARGET_PRECISION = 0.4
 MINIMUM_POSITIVE_RATINGS = 1
 
 def get_user_categories(user_id):
-    # sqlalchemy must have columns from all joins therefore include LikedCategories.category_id
-    # then discard it
-    categories = db.session.query(LikedCategories.category_id, Category.name).filter(LikedCategories.user_id == user_id).join(
-        Category, Category.id == LikedCategories.category_id).all()
+    categories = UserRepository(db.session).find_liked_categories(user_id)
     categories = pd.Series([[x.name for x in categories]])
     return user_preprocessing().transform(categories)[0]
 
@@ -60,26 +59,10 @@ def concat_categories_user_feature(categories, user_id):
 def create_single_user_feature(user_id):
     return concat_categories_user_feature(get_user_categories(user_id), user_id)
 
-
-def is_user_added(user_id):
-    unique_embeddings_len = model.user_embeddings.shape[0] - get_length_common_features_users()
-    return user_id < unique_embeddings_len
-
-
-def convert_positive_book_ratings_to_csr(positive_book_ratings, nr_users, user_id):
-    ones = np.ones_like(positive_book_ratings)
-    user_id_arr = np.full_like(ones, user_id)
-
-    nr_books = get_nr_items()
-    y = csr_matrix((ones, (user_id_arr, positive_book_ratings)),
-                   shape=(nr_users, nr_books), dtype=int)
-    return y
-
-
 def compute_user_precision(model, nr_positive_ratings, y, item_features, user_features):
-
+    # k = nr_positive_ratings because precision is computed for all items here
     return custom_precision_at_k(model, y, item_features=item_features, user_features=user_features, 
-                                 k=nr_positive_ratings, num_threads=8).mean()
+                                 k=nr_positive_ratings, num_threads=12).mean()
 
 
 def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
@@ -90,8 +73,7 @@ def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
         user_feature = concat_categories_user_feature(user_categories, user_id)
         single_user_model = LightfmRepository.new_model_with_single_user(user_feature)
 
-        y = convert_positive_book_ratings_to_csr(
-            positive_book_ratings, 1, 0)
+        y = BookRecommenderRepository.convert_positive_book_ratings_to_csr(positive_book_ratings)
         
         user_feature_ones = csr_matrix(user_feature.data)
         
@@ -100,7 +82,7 @@ def model_books_train_on_user(positive_book_ratings, user_id, user_categories):
             single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_feature_ones)
         print("start training")
         while precision < TARGET_PRECISION:
-            single_user_model.fit_partial(y, item_features=item_features(), user_features=user_feature_ones, epochs=1000, num_threads=8)
+            single_user_model.fit_partial(y, item_features=item_features(), user_features=user_feature_ones, epochs=1000, num_threads=12)
             precision = compute_user_precision(
                 single_user_model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_feature_ones)
             print("precision: ", precision)
@@ -126,15 +108,11 @@ def validate_training_status(user_id):
         return {"cannot_train": f"Minimum {MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like" +
                 f" {MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."}
     with books_model_memory_change_lock.gen_rlock():
-        if is_user_added(user_id) == False:
+        if LightfmRepository.is_user_added(user_id) == False:
             return {"must_train": True}
-        y = convert_positive_book_ratings_to_csr(
-            positive_book_ratings, get_nr_users(), user_id)
+        y = BookRecommenderRepository.convert_positive_book_ratings_to_csr(positive_book_ratings)
         user_feature = create_single_user_feature(user_id)
-        user_features_ = user_features()
-        user_features_[user_id] = user_feature[0]
-        precision = compute_user_precision(
-            model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_features_)
+        precision = compute_user_precision(model, len(positive_book_ratings), y, item_features(), user_feature)
     if precision < 0.2:
         return {"must_train": True}
     if precision < TARGET_PRECISION:
