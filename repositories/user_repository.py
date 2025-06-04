@@ -38,6 +38,19 @@ class UserRepository:
         self.scoped_session.add(model)
         self.scoped_session.commit()
         return model
+    
+    def find_by_id(self, id: int) -> User | None:
+        """
+        Finds user by id.
+
+        Args:
+            id (int): User id.
+
+        Returns:
+            User | None.
+        """
+
+        return self.scoped_session.query(User).where(User.id == id).first()
 
     def find_by_id_with_book_rating(self, id: int) -> User | None:
         """

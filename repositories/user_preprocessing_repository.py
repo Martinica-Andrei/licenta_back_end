@@ -12,4 +12,4 @@ class UserPreprocessingRepository:
         """No attributes."""
 
     def get_preprocessing(self) -> MostCommonWords:
-        return self.__preprocessing
+        return UserPreprocessingRepository.__preprocessing

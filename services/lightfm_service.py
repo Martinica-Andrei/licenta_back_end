@@ -68,7 +68,8 @@ class LightfmService:
         Checks if user_id is added, if not add new user features and user embeddings, gradients, momentum.
 
         Args:
-            user_id (int): Computes distance between current_features/embeddings and user id.
+            user_id (int): Computes distance between current_features/embeddings and user id to 
+            check how many embeddings/features to add.
 
         Returns:
             None.

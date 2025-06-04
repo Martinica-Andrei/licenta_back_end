@@ -12,20 +12,20 @@ class UserFeaturesRepository:
 
     def get_user_features(self) -> csr_matrix:
         """Gets user features."""
-        return self.__features
+        return UserFeaturesRepository.__features
 
     def set_user_features(self, features: csr_matrix) -> None:
         "Sets and saves user features."
-        self.__features = features
+        UserFeaturesRepository.__features = features
         save_npz(BOOKS_DATA_USER_FEATURES, self.__features)
 
     def get_nr_users(self) -> int:
         """Gets nr of users from features."""
-        return self.__features.shape[0]
+        return UserFeaturesRepository.__features.shape[0]
 
     def get_nr_features(self) -> int:
         """Gets nr of user features from features."""
-        return self.__features.shape[1]
+        return UserFeaturesRepository.__features.shape[1]
 
     def get_nr_common_features(self) -> int:
         """Get number of common features from features."""

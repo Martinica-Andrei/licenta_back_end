@@ -11,7 +11,7 @@ class ItemFeaturesRepository:
 
     def get_item_features(self) -> csr_matrix:
         "Gets item_features."
-        return self.__features
+        return ItemFeaturesRepository.__features
 
     def set_item_features(self, features) -> None:
         "Sets and saves item features."
@@ -20,11 +20,11 @@ class ItemFeaturesRepository:
 
     def get_nr_items(self) -> int:
         """Gets nr of items from features."""
-        return self.__features.shape[0]
+        return ItemFeaturesRepository.__features.shape[0]
 
     def get_nr_features(self) -> int:
         """Gets nr of item features from features."""
-        return self.__features.shape[1]
+        return ItemFeaturesRepository.__features.shape[1]
 
     def get_nr_common_features(self) -> int:
         """Get number of common features from features."""

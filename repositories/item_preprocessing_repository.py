@@ -12,6 +12,6 @@ class ItemPreprocessingRepository:
         """No attributes."""
 
     def get_preprocessing(self) -> ColumnTransformer:
-        return self.__preprocessing
+        return ItemPreprocessingRepository.__preprocessing
 
  

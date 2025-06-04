@@ -1,3 +1,4 @@
+from flask import json
 from lightfm import LightFM
 import numpy as np
 from sqlalchemy.orm.scoping import scoped_session
@@ -13,7 +14,7 @@ from repositories.item_features_repository import ItemFeaturesRepository
 from repositories.lightfm_repository import LightfmRepository
 from repositories.user_repository import UserRepository
 from scipy.sparse import csr_matrix
-
+from threading import Thread, Event
 from services.item_preprocessing_service import ItemPreprocessingService
 from services.lightfm_service import LightfmService
 from services.nearest_neighbors_service import NearestNeighborsService
@@ -35,9 +36,13 @@ class BookRecommenderError(Exception):
 
 class BookRecommenderService:
 
-    MINIMUM_POSITIVE_RATINGS = 1
-    BELOW_PRECISION_THRESHOLD = 0.2
-    TARGET_PRECISION = 0.5
+    __MINIMUM_POSITIVE_RATINGS: int = 5
+    __BELOW_PRECISION_THRESHOLD: float = 0.2
+    __MAX_PRECISION: float = 0.5
+
+    __curent_user_training_id: int = -1
+    __current_user_training_progress: int = -1
+    __event_training_progress_changed = Event()
 
     def __init__(self, scoped_session: scoped_session):
         self.book_repository = BookRepository(scoped_session)
@@ -135,11 +140,16 @@ class BookRecommenderService:
         Returns:
             TrainingStatusDto.
         """
+        if BookRecommenderService.__curent_user_training_id != -1:
+            if BookRecommenderService.__curent_user_training_id == user_id:
+                return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER, "")
+            else:
+                return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_OTHER_USER, "Currently training another user. Please wait a few minutes!")
 
         positive_book_ratings = self.user_repository.find_liked_books(user_id)
-        if len(positive_book_ratings) < self.MINIMUM_POSITIVE_RATINGS:
-            message = f"Minimum {self.MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like" +\
-                      f"{self.MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
+        if len(positive_book_ratings) < BookRecommenderService.__MINIMUM_POSITIVE_RATINGS:
+            message = f"Minimum {BookRecommenderService.__MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like " +\
+                      f"{BookRecommenderService.__MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
             return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
         if self.lightfm_service.is_user_added(user_id) == False:
             return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
@@ -154,12 +164,57 @@ class BookRecommenderService:
         item_features = self.item_features_repository.get_item_features()
         precision = self.__compute_user_precision(
             model, len(positive_book_ratings), y, item_features=item_features, user_features=user_feature)
-        if precision < self.BELOW_PRECISION_THRESHOLD:
+        if precision < BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
             return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
-        if precision < self.TARGET_PRECISION:
+        if precision < BookRecommenderService.__MAX_PRECISION:
             return TrainingStatusDto(TrainingStatus.CAN_TRAIN, "")
         else:
             return TrainingStatusDto(TrainingStatus.ALREADY_TRAINED, "")
+
+    def train_on_single_user(self, user_id: int) -> None:
+        """
+        Trains the model on a single user by creating a new model and transfering the data.
+
+        Args:
+            user_id (int): User id.
+
+        Returns:
+            None.
+        """
+
+        BookRecommenderService.__curent_user_training_id = user_id
+
+        self.lightfm_service.add_new_users(user_id)
+        self.lightfm_service.reset_user_gradients(user_id)
+
+        user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+            user_id)
+        item_features = self.item_features_repository.get_item_features()
+
+        single_user_model = self.lightfm_repository.new_model_with_single_user(
+            user_feature, self.lightfm_repository.get_model())
+
+        positive_book_ratings = self.user_repository.find_liked_books(user_id)
+        y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
+            positive_book_ratings)
+
+        thread_args = (single_user_model,
+                        len(positive_book_ratings),
+                        y,
+                        item_features,
+                        user_feature)
+
+        Thread(target=self.__train_on_single_user, args=thread_args).start()
+
+    def get_training_progress(self):
+        """
+        Awaits and yields training progress when it is changed.
+        """
+        while BookRecommenderService.__curent_user_training_id != -1:
+            BookRecommenderService.__event_training_progress_changed.wait()
+            yield json.dumps(BookRecommenderService.__current_user_training_progress) + '\n'
+            BookRecommenderService.__event_training_progress_changed.clear()
+        BookRecommenderService.__event_training_progress_changed.set()
 
     @staticmethod
     def map_model_to_get_dto(model: Book) -> GetBookDto:
@@ -203,3 +258,48 @@ class BookRecommenderService:
         rated_books = self.user_repository.find_rated_books(user_id)
         rated_ids = [book.id for book in rated_books]
         return book_indices[np.isin(book_indices, rated_ids) == False]
+
+    def __train_on_single_user(self, model: LightFM, nr_positive_ratings: int,
+                               y: csr_matrix, item_features: csr_matrix, user_feature: csr_matrix):
+        """
+        Trains on single user.
+
+        Args:
+            model (LightFM): LightFM model with features for only 1 user.
+            nr_positive_ratings (int): Number of positive ratings.
+            y (csr_matrix): Single row csr matrix representing target predictions.
+            item_features (csr_matrix): All item features.
+            user_feature (csr_matrix): Single row csr_matrix representing features for that user.
+        """
+
+        user_feature_ones = csr_matrix(user_feature.data)
+        max_percentage = 0
+
+        BookRecommenderService.__current_user_training_progress = max_percentage
+        BookRecommenderService.__event_training_progress_changed.set()
+
+        while True:
+            model.fit_partial(y, item_features=item_features,
+                              user_features=user_feature_ones, epochs=200, num_threads=12)
+            precision = self.__compute_user_precision(model, nr_positive_ratings,
+                                                      y, item_features, user_feature_ones)
+            percentage = round(precision / BookRecommenderService.__BELOW_PRECISION_THRESHOLD, 2)
+            percentage = min(1, percentage) # percentage must take values from 0 to 1 only
+            if percentage > max_percentage:
+                BookRecommenderService.__current_user_training_progress = percentage
+                BookRecommenderService.__event_training_progress_changed.set()
+            if precision >= BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
+                break
+
+        BookRecommenderService.__curent_user_training_id = -1
+        BookRecommenderService.__event_training_progress_changed.set()
+        # wait for progress to be displayed then continue
+        BookRecommenderService.__event_training_progress_changed.wait()
+        BookRecommenderService.__current_user_training_progress = -1
+        BookRecommenderService.__event_training_progress_changed.clear()
+
+        base_model = self.lightfm_repository.get_model()
+        LightfmRepository.transfer_data_from_new_model_to_model(
+            model, base_model, user_feature)
+        self.nearest_neighbors_service.refit_neighbors()
+        self.lightfm_repository.save_model()

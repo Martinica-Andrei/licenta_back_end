@@ -12,7 +12,7 @@ class NearestNeighborsRepository:
         """No attributes."""
 
     def get_model(self) -> NearestNeighbors:
-        return self.__model
+        return NearestNeighborsRepository.__model
     
     def get_nearest_neighbors_for_single_item(self, item_representation: np.ndarray) -> np.ndarray:
         """
@@ -26,6 +26,6 @@ class NearestNeighborsRepository:
         """
         # kneighbors takes as input an array with 2 dim, one row for each item
         # and also returns a tuple therefore index it by [0]
-        indices = self.__model.kneighbors(
+        indices = NearestNeighborsRepository.__model.kneighbors(
             [item_representation], return_distance=False)[0]
         return indices

@@ -6,6 +6,8 @@ class TrainingStatus(Enum):
     CAN_TRAIN = 1
     CANNOT_TRAIN = 2
     ALREADY_TRAINED = 3
+    CURRENTLY_TRAINING_OTHER_USER = 4
+    CURRENTLY_TRAINING_LOGGED_IN_USER = 5
 
 
 class TrainingStatusDto:

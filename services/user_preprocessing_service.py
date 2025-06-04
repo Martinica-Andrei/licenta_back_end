@@ -13,7 +13,7 @@ class UserPreprocessingService:
         self.user_repository = UserRepository(scoped_session)
         self.user_features_repository = UserFeaturesRepository()
 
-    def get_transformed_categories_by_user_id_with_unique_feature(self, id) -> csr_matrix:
+    def get_transformed_categories_by_user_id_with_unique_feature(self, id: int) -> csr_matrix:
         """
         Gets transformed liked categories from user with `id` and unique feature.
 
@@ -26,7 +26,7 @@ class UserPreprocessingService:
         Raises:
             ValueError: User with `id` doesn't exist
         """
-        if id < 0 or id >= self.user_features_repository.get_nr_users():
+        if self.user_repository.find_by_id(id) is None:
             raise ValueError(f"User with id {id} doesn't exist")
         
         categories = self.__get_transformed_categories_by_user_id(id)

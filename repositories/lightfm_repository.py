@@ -14,7 +14,11 @@ class LightfmRepository:
 
     def get_model(self) -> LightFM:
         """Gets the lightFM model."""
-        return self.__model
+        return LightfmRepository.__model
+    
+    def save_model(self) -> None:
+        """Saves model."""
+        joblib.dump(LightfmRepository.__model, BOOKS_DATA_MODEL)
 
     def add_new_user_embeddings(self, nr_users_to_add: int) -> None:
         """
@@ -28,7 +32,7 @@ class LightfmRepository:
             None.
         """
         # for faster writing
-        model = self.__model
+        model = LightfmRepository.__model
 
         random_state = model.random_state
         nr_components = model.no_components
@@ -71,7 +75,7 @@ class LightfmRepository:
             [model.user_bias_momentum, new_user_bias_momentum], axis=0, dtype=np.float32)
 
     @staticmethod
-    def new_model_with_single_user(user_feature: csr_matrix) -> LightFM:
+    def new_model_with_single_user(user_feature: csr_matrix, model: LightFM) -> LightFM:
         """
         Creates and returns a new lightFM model with embeddings from features of a single user and all item embeddings.
 
