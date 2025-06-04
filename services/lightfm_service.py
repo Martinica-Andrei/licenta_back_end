@@ -36,7 +36,7 @@ class LightfmService:
         features = self.item_features_repository.get_item_features()
         model = self.lightfm_repository.get_model()
         bias, components = model.get_item_representations(features[id])
-        return self.__concatenate_bias_components(bias, components)
+        return self.__concatenate_bias_components(bias, components)[0]
 
     def __concatenate_bias_components(self, bias: np.ndarray, components: np.ndarray) -> np.ndarray:
         """
