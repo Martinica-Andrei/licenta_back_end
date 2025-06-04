@@ -19,7 +19,7 @@ def training_status():
     return jsonify(json)
 
 
-@blueprint.get("/recommendations")
+@blueprint.get("/")
 @login_required
 def recommendations():
     book_recommender_service = BookRecommenderService(db.session)
