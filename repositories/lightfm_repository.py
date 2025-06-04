@@ -1,15 +1,20 @@
-from load_book_recommendation_model import (model,
-                                            get_nr_users,
-                                            get_nr_user_features,
-                                            set_user_features,
-                                            user_features,
-                                            get_length_common_features_users)
+import joblib
+from utils import BOOKS_DATA_MODEL
 import numpy as np
 from scipy.sparse import hstack, csr_matrix, identity, vstack
 from lightfm import LightFM
 
 
 class LightfmRepository:
+
+    __model : LightFM = joblib.load(BOOKS_DATA_MODEL)
+
+    def __init__(self):
+        """No attributes."""
+
+    def get_model(self) -> LightFM:
+        """Gets the lightFM model."""
+        return self.__model
 
     @staticmethod
     def add_new_users(user_id: int) -> None:

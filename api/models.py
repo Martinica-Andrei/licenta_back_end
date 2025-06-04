@@ -7,26 +7,11 @@ from .api import api_blueprint
 from db import db
 from lightfm import LightFM
 import numpy as np
-from load_book_recommendation_model import (model,
-                                            item_features,
-                                            user_features,
-                                            refit_neighbors,
-                                            get_nr_items,
-                                            get_nr_users,
-                                            get_nr_items_features,
-                                            get_nr_user_features, 
-                                            get_length_common_features_items, 
-                                            get_length_common_features_users,
-                                            set_item_features,
-                                            set_user_features,
-                                            user_preprocessing)
 from scipy.sparse import csr_matrix, hstack, vstack, identity
 import joblib
 import utils
 from db_models.book import Book
 from db_models.book_rating import BookRating
-from db_models import LikedCategories
-from db_models import Category
 import pandas as pd
 import threading
 from flask_login import login_required, current_user

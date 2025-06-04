@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sqlalchemy.orm.scoping import scoped_session
 from db_models.book import Book
@@ -8,8 +9,11 @@ from dtos.book_recommenders.training_status_dto import TrainingStatusDto, Traini
 from repositories.book_image_repository import BookImageRepository
 from repositories.book_recommender_repository import BookRecommenderRepository
 from repositories.book_repository import BookRepository
+from repositories.lightfm_repository import LightfmRepository
 from repositories.user_repository import UserRepository
 from scipy.sparse import csr_matrix
+
+from services.item_preprocessing_service import ItemPreprocessingService
 
 class BookRecommenderError(Exception):
     def __init__(self, message: dict, code=400):
@@ -32,9 +36,9 @@ class BookRecommenderService:
     def __init__(self, scoped_session: scoped_session):
         self.book_repository = BookRepository(scoped_session)
         self.user_repository = UserRepository(scoped_session)
-        # Also uses:
-        # LightfmRepository
-        # BookRecommenderRepository
+        self.lightfm_repository = LightfmRepository()
+        self.item_preprocessing_service = ItemPreprocessingService(scoped_session)
+
 
     def get_recommendations_by_id(self, dto: ByIdDto) -> list[GetBookDto]:
         """
@@ -84,54 +88,39 @@ class BookRecommenderService:
         dtos = [self.map_model_to_get_dto(model) for model in models]
         return dtos
     
-    def validate_training_status(self, user_id: int) -> TrainingStatusDto:
-        """
-        Validates training status.
+    # def validate_training_status(self, user_id: int) -> TrainingStatusDto:
+    #     """
+    #     Validates training status.
 
-        Args:
-            user_id (id): User id.
+    #     Args:
+    #         user_id (id): User id.
 
-        Returns:
-            TrainingStatusDto.
-        """
+    #     Returns:
+    #         TrainingStatusDto.
+    #     """
 
-        positive_book_ratings = self.user_repository.find_liked_books(user_id)
-        if len(positive_book_ratings) < self.MINIMUM_POSITIVE_RATINGS:
-            message = f"Minimum {self.MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like" +\
-                      f"{self.MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
-            return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
-        book_ids = [x.id for x in positive_book_ratings]
-        # with books_model_memory_change_lock.gen_rlock():
-        #     if LightfmRepository.is_user_added(user_id) == False:
-        #         return {"must_train": True}
-        #     y = convert_positive_book_ratings_to_csr(
-        #         positive_book_ratings, get_nr_users(), user_id)
-        #     user_feature = create_single_user_feature(user_id)
-        #     user_features_ = user_features()
-        #     user_features_[user_id] = user_feature[0]
-        #     precision = compute_user_precision(
-        #         model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_features_)
-        # if precision < 0.2:
-        #     return {"must_train": True}
-        # if precision < TARGET_PRECISION:
-        #     return {"can_train": True}
-        # else:
-        #     return {"can_train": False}
-
-    
-    def __get_user_categories(self, user_id : int) -> csr_matrix:
-        """
-        Gets user liked categories as single row csr_matrix with all categories as columns 
-        where the user's liked categories have value 1 and others 0.
-
-        Args:
-            user_id (int): User id to fetch and transform categories to csr_matrix.
-
-        Returns:
-            csr_matrix.
-        """
-        categories = self.user_repository.find_liked_categories(user_id)
-        return BookRecommenderRepository.transform_categories(categories)
+    #     positive_book_ratings = self.user_repository.find_liked_books(user_id)
+    #     if len(positive_book_ratings) < self.MINIMUM_POSITIVE_RATINGS:
+    #         message = f"Minimum {self.MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like" +\
+    #                   f"{self.MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
+    #         return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
+    #     book_ids = [x.id for x in positive_book_ratings]
+    #     with books_model_memory_change_lock.gen_rlock():
+    #         if LightfmRepository.is_user_added(user_id) == False:
+    #             return {"must_train": True}
+    #         y = convert_positive_book_ratings_to_csr(
+    #             positive_book_ratings, get_nr_users(), user_id)
+    #         user_feature = create_single_user_feature(user_id)
+    #         user_features_ = user_features()
+    #         user_features_[user_id] = user_feature[0]
+    #         precision = compute_user_precision(
+    #             model, len(positive_book_ratings), y, item_features=item_features(), user_features=user_features_)
+    #     if precision < 0.2:
+    #         return {"must_train": True}
+    #     if precision < TARGET_PRECISION:
+    #         return {"can_train": True}
+    #     else:
+    #         return {"can_train": False}
 
     @staticmethod
     def map_model_to_get_dto(model: Book) -> GetBookDto:
@@ -151,3 +140,18 @@ class BookRecommenderService:
                           authors,
                           rating
                           )
+
+
+    def __get_user_categories(self, user_id : int) -> csr_matrix:
+        """
+        Gets user liked categories as single row csr_matrix with all categories as columns 
+        where the user's liked categories have value 1 and others 0.
+
+        Args:
+            user_id (int): User id to fetch and transform categories to csr_matrix.
+
+        Returns:
+            csr_matrix.
+        """
+        categories = self.user_repository.find_liked_categories(user_id)
+        return BookRecommenderRepository.transform_categories(categories)
