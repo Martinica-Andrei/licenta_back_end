@@ -1,4 +1,5 @@
 from lightfm import LightFM
+import numpy as np
 from sqlalchemy.orm.scoping import scoped_session
 from custom_precision_at_k import custom_precision_at_k
 from db_models.book import Book
@@ -100,6 +101,30 @@ class BookRecommenderService:
         dtos = [self.map_model_to_get_dto(model) for model in models]
         return dtos
 
+    def get_recommendations_by_user(self, id: int) -> list[GetBookDto]:
+        """
+        Gets book recommendations by user with `id`.
+
+        Args:
+            id (int). User id.
+
+        Returns:
+            list[GetBookDto].
+        """
+        item_features = self.item_features_repository.get_item_features()
+        user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+            id)
+        book_indices = self.__get_all_book_indices_not_rated(id)
+        model = self.lightfm_repository.get_model()
+        predictions = model.predict(
+            0, book_indices, item_features=item_features, user_features=user_feature)
+        indices_sorted = np.argsort(-predictions)
+        top_book_indices = book_indices[indices_sorted[:100]]
+        predicted_books = self.book_repository.find_by_ids_with_categories_authors_rating(
+            top_book_indices, id)
+        dtos = [self.map_model_to_get_dto(book) for book in predicted_books]
+        return dtos
+
     def validate_training_status(self, user_id: int) -> TrainingStatusDto:
         """
         Validates training status for user with `user_id`.
@@ -118,7 +143,7 @@ class BookRecommenderService:
             return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
         if self.lightfm_service.is_user_added(user_id) == False:
             return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
-        
+
         self.lightfm_service.add_user_embeddings_if_feature_mismatch()
 
         y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
@@ -155,7 +180,7 @@ class BookRecommenderService:
                           rating
                           )
 
-    def __compute_user_precision(self, model: LightFM, nr_positive_ratings: int, 
+    def __compute_user_precision(self, model: LightFM, nr_positive_ratings: int,
                                  y: csr_matrix, item_features: csr_matrix, user_features: csr_matrix):
         """
         Computes custom_precision_at_k for top `nr_positive_ratings`.
@@ -163,3 +188,18 @@ class BookRecommenderService:
         # k = nr_positive_ratings because precision is computed for all items here
         return custom_precision_at_k(model, y, item_features=item_features, user_features=user_features,
                                      k=nr_positive_ratings, num_threads=12).mean()
+
+    def __get_all_book_indices_not_rated(self, user_id: int) -> np.ndarray:
+        """
+        Gets all book indices/ids that are not rated by user.
+
+        Args:
+            user_id (int): User id.
+
+        Returns:
+            np.ndarray: Single dimensional array.
+        """
+        book_indices = np.arange(self.item_features_repository.get_nr_items())
+        rated_books = self.user_repository.find_rated_books(user_id)
+        rated_ids = [book.id for book in rated_books]
+        return book_indices[np.isin(book_indices, rated_ids) == False]

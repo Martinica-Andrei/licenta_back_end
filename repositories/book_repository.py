@@ -63,7 +63,7 @@ class BookRepository:
 
     def find_by_ids_with_categories_authors(self, ids: list | np.ndarray) -> list[Book]:
         """
-        Finds all books by `ids`.
+        Finds all books by `ids` with categories and authors.
 
         Args:
             ids (list | np.ndarray): Single dimension array or list containing indices to fetch books.
@@ -79,7 +79,7 @@ class BookRepository:
 
     def find_by_ids_with_categories_authors_rating(self, ids: list | np.ndarray, user_id: int) -> list[Book]:
         """
-        Finds all books by `ids` and also finds user rating for `user_id`.
+        Finds all books by `ids` with categories, authors and also finds user rating for `user_id`.
 
         Args:
             ids (list | np.ndarray): Single dimension array or list containing indices to fetch books by id.

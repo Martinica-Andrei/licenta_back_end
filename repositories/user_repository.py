@@ -4,7 +4,8 @@ from db_models.book_rating import BookRating
 from db_models.category import Category
 from db_models.liked_categories import LikedCategories
 from db_models.user import User
-from sqlalchemy.orm import selectinload, with_loader_criteria
+from sqlalchemy.orm import selectinload
+from sqlalchemy import and_
 
 
 class UserRepository:
@@ -56,6 +57,20 @@ class UserRepository:
     def find_liked_books(self, id: int) -> list[Book]:
         """
         Find liked books for user with `id`.
+
+        Args:
+            id (int): User id.
+
+        Returns:
+            list[Book].
+        """
+        return self.scoped_session.query(Book).\
+        join(BookRating, BookRating.book_id == Book.id).\
+        where(and_(BookRating.user_id == id, BookRating.rating == "Like")).all()
+    
+    def find_rated_books(self, id: int) -> list[Book]:
+        """
+        Find rated books for user with `id`.
 
         Args:
             id (int): User id.
