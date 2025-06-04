@@ -25,7 +25,7 @@ class NearestNeighborsService:
             None: If id doesn't exist.
 
         """
-        item_representation = LightfmService.find_single_item_representation(
+        item_representation = self.lightfm_service.find_single_item_representation(
             id)
         if item_representation is None:
             return None
