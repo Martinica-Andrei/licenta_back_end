@@ -29,10 +29,3 @@ class NearestNeighborsRepository:
         indices = self.__model.kneighbors(
             [item_representation], return_distance=False)[0]
         return indices
-
-#     def refit_neighbors():
-#     global neighbors
-#     item_representations = model_item_representations()
-#     neighbors.fit(item_representations)
-
-# refit_neighbors()

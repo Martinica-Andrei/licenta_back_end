@@ -1,5 +1,4 @@
 from dtos.converter import Converter
-from load_book_recommendation_model import get_nr_items
 
 class PostLikedCategoryDto:
     def __init__(self, category_id : int, user_id : int, like : bool):

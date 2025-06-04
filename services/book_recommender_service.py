@@ -5,15 +5,14 @@ from db_models.book import Book
 from dtos.book_recommenders.by_id_dto import ByIdDto
 from dtos.book_recommenders.get_book_dto import GetBookDto
 from dtos.book_recommenders.by_content_dto import ByContentDto
-from dtos.book_recommenders.training_status_dto import TrainingStatusDto, TrainingStatus
 from repositories.book_image_repository import BookImageRepository
-from repositories.book_recommender_repository import BookRecommenderRepository
 from repositories.book_repository import BookRepository
 from repositories.lightfm_repository import LightfmRepository
 from repositories.user_repository import UserRepository
 from scipy.sparse import csr_matrix
 
 from services.item_preprocessing_service import ItemPreprocessingService
+from services.nearest_neighbors_service import NearestNeighborsService
 
 class BookRecommenderError(Exception):
     def __init__(self, message: dict, code=400):
@@ -38,6 +37,7 @@ class BookRecommenderService:
         self.user_repository = UserRepository(scoped_session)
         self.lightfm_repository = LightfmRepository()
         self.item_preprocessing_service = ItemPreprocessingService(scoped_session)
+        self.nearest_neighbors_service = NearestNeighborsService(scoped_session)
 
 
     def get_recommendations_by_id(self, dto: ByIdDto) -> list[GetBookDto]:
@@ -53,7 +53,7 @@ class BookRecommenderService:
         Raises:
             BookRecommenderError: If `dto.book_id` doesn't exist.
         """
-        ids = BookRecommenderRepository.find_nearest_neighbors_by_id(
+        ids = self.nearest_neighbors_service.find_nearest_neighbors_by_id(
             dto.book_id)
         if ids is None:
             raise BookRecommenderError(
@@ -77,7 +77,7 @@ class BookRecommenderService:
         Returns:
             list[GetBookDto].
         """
-        ids = BookRecommenderRepository.get_nearest_neighbors_by_content(
+        ids = self.nearest_neighbors_service.get_nearest_neighbors_by_content(
             dto.content, dto.categories, dto.authors)
         if dto.user_id is not None:
             models = self.book_repository.find_by_ids_with_categories_authors_rating(

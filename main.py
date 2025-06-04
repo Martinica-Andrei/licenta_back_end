@@ -3,6 +3,7 @@ from app import app
 import api
 from cors import init_cors
 from db import db
+from services.nearest_neighbors_service import NearestNeighborsService
 from session import init_session
 from csrf import csrf
 from login_manager import login_manager
@@ -18,4 +19,5 @@ if __name__ == '__main__':
     init_session(app)
     csrf.init_app(app)
     login_manager.init_app(app)
+    NearestNeighborsService(None).refit_neighbors()
     app.run(debug=True, threaded=True)

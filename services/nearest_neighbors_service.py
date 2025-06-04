@@ -51,3 +51,7 @@ class NearestNeighborsService:
         indices = self.nearest_neighbors_repository.get_nearest_neighbors_for_single_item(
             item_representation)
         return indices
+    
+    def refit_neighbors(self):
+        item_representations = self.lightfm_service.get_item_representations()
+        self.nearest_neighbors_repository.get_model().fit(item_representations)

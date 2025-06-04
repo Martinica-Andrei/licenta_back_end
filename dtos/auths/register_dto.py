@@ -1,5 +1,3 @@
-import re
-
 from dtos.converter import Converter
 
 class RegisterDto:
