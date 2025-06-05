@@ -48,6 +48,8 @@ class BookRecommenderService:
     __event_training_progress_changed = Event()
     __event_training_progress_stop = Event()
 
+    __is_training = False
+
     def __init__(self, scoped_session: scoped_session):
         self.book_repository = BookRepository(scoped_session)
         self.user_repository = UserRepository(scoped_session)
@@ -199,6 +201,7 @@ class BookRecommenderService:
             None.
         """
         with BookRecommenderService.__LOCK.gen_wlock():
+            BookRecommenderService.__is_training = True
             BookRecommenderService.__curent_user_training_id = user_id
 
             self.lightfm_service.add_new_users(user_id)
@@ -313,8 +316,7 @@ class BookRecommenderService:
             if precision >= BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
                 break
 
-        with BookRecommenderService.__LOCK.gen_wlock():
-            BookRecommenderService.__curent_user_training_id = -1
+        BookRecommenderService.__curent_user_training_id = -1
         BookRecommenderService.__event_training_progress_changed.set()
         # wait for progress to be displayed then continue
         BookRecommenderService.__event_training_progress_stop.wait()
@@ -327,9 +329,10 @@ class BookRecommenderService:
                 model, base_model, user_feature)
             self.nearest_neighbors_service.refit_neighbors()
             self.lightfm_repository.save_model()
+            BookRecommenderService.__is_training = False
 
     def __validate_current_user_training(self, user_id) -> TrainingStatusDto | None:
-        if BookRecommenderService.__curent_user_training_id != -1:
+        if BookRecommenderService.__is_training:
             if BookRecommenderService.__curent_user_training_id == user_id:
                 return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER, "")
             else:
