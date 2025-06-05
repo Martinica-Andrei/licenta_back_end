@@ -46,4 +46,6 @@ def process_book_scraped_url(url : str) -> str:
     Returns:
         str: Processed url.s
     """
-    return url.replace(__base_url, '').replace('/', '-')
+    if type(url) is str:
+        return url.replace(__base_url, '').replace('/', '-')
+    return url

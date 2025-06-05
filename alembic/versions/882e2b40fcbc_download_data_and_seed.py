@@ -35,9 +35,10 @@ def upgrade() -> None:
     categories_to_sql(connection, categories_encoder)
 
     book_df = pd.read_csv(utils.BOOKS_DATA_BOOKS_PROCESSED)
+
+    book_to_sql(connection, book_df)
     book_authors_to_sql(connection, book_df)
     book_categories_to_sql(connection, book_df, categories_encoder)
-    book_to_sql(connection, book_df)
 
 
 def downgrade() -> None:
@@ -96,7 +97,6 @@ def book_authors_to_sql(connection, book_df: pd.DataFrame) -> None:
     # and concatenate all dataframes vertically
     book_authors = pd.concat(book_authors.apply(
         convert_book_authors, axis=1).values, axis=0, ignore_index=True)
-    print(book_authors)
     book_authors.to_sql('book_authors', connection,
                         if_exists='append', index=False)
 

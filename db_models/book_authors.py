@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from db import Base
 
@@ -11,3 +11,7 @@ class BookAuthors(Base):
     role = Column(String(500), nullable=True)
 
     author = relationship('Author')
+
+    __table_args__ = (
+        UniqueConstraint('book_id', 'author_id', name='unique_book_id_author_id'),
+    )
