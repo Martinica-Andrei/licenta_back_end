@@ -19,6 +19,7 @@ from services.item_preprocessing_service import ItemPreprocessingService
 from services.lightfm_service import LightfmService
 from services.nearest_neighbors_service import NearestNeighborsService
 from services.user_preprocessing_service import UserPreprocessingService
+from readerwriterlock.rwlock import RWLockWrite
 
 
 class BookRecommenderError(Exception):
@@ -35,6 +36,8 @@ class BookRecommenderError(Exception):
 
 
 class BookRecommenderService:
+
+    __LOCK = RWLockWrite()
 
     __MINIMUM_POSITIVE_RATINGS: int = 8
     __BELOW_PRECISION_THRESHOLD: float = 0.3
@@ -72,8 +75,9 @@ class BookRecommenderService:
         Raises:
             BookRecommenderError: If `dto.book_id` doesn't exist.
         """
-        ids = self.nearest_neighbors_service.find_nearest_neighbors_by_id(
-            dto.book_id)
+        with BookRecommenderService.__LOCK.gen_rlock():
+            ids = self.nearest_neighbors_service.find_nearest_neighbors_by_id(
+                dto.book_id)
         if ids is None:
             raise BookRecommenderError(
                 {'id': f"* Book with id {dto.book_id} doesn't exist"}, 400)
@@ -96,8 +100,9 @@ class BookRecommenderService:
         Returns:
             list[GetBookDto].
         """
-        ids = self.nearest_neighbors_service.get_nearest_neighbors_by_content(
-            dto.content, dto.categories, dto.authors)
+        with BookRecommenderService.__LOCK.gen_rlock():
+            ids = self.nearest_neighbors_service.get_nearest_neighbors_by_content(
+                dto.content, dto.categories, dto.authors)
         if dto.user_id is not None:
             models = self.book_repository.find_by_ids_with_categories_authors_rating(
                 ids, dto.user_id)
@@ -117,13 +122,14 @@ class BookRecommenderService:
         Returns:
             list[GetBookDto].
         """
-        item_features = self.item_features_repository.get_item_features()
-        user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
-            id)
-        book_indices = self.__get_all_book_indices_not_rated(id)
-        model = self.lightfm_repository.get_model()
-        predictions = model.predict(
-            0, book_indices, item_features=item_features, user_features=user_feature)
+        with BookRecommenderService.__LOCK.gen_rlock():
+            item_features = self.item_features_repository.get_item_features()
+            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+                id)
+            book_indices = self.__get_all_book_indices_not_rated(id)
+            model = self.lightfm_repository.get_model()
+            predictions = model.predict(
+                0, book_indices, item_features=item_features, user_features=user_feature)
         indices_sorted = np.argsort(-predictions)
         top_book_indices = book_indices[indices_sorted[:100]]
         predicted_books = self.book_repository.find_by_ids_with_categories_authors_rating(
@@ -141,30 +147,34 @@ class BookRecommenderService:
         Returns:
             TrainingStatusDto.
         """
-        if BookRecommenderService.__curent_user_training_id != -1:
-            if BookRecommenderService.__curent_user_training_id == user_id:
-                return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER, "")
-            else:
-                return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_OTHER_USER, "Currently training another user. Please wait a few minutes!")
+        with BookRecommenderService.__LOCK.gen_rlock():
+            if BookRecommenderService.__curent_user_training_id != -1:
+                if BookRecommenderService.__curent_user_training_id == user_id:
+                    return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER, "")
+                else:
+                    return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_OTHER_USER, "Currently training another user. Please wait a few minutes!")
 
-        positive_book_ratings = self.user_repository.find_liked_books(user_id)
-        if len(positive_book_ratings) < BookRecommenderService.__MINIMUM_POSITIVE_RATINGS:
-            message = f"Minimum {BookRecommenderService.__MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like " +\
-                      f"{BookRecommenderService.__MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
-            return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
-        if self.lightfm_service.is_user_added(user_id) == False:
-            return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
+            positive_book_ratings = self.user_repository.find_liked_books(user_id)
+            if len(positive_book_ratings) < BookRecommenderService.__MINIMUM_POSITIVE_RATINGS:
+                message = f"Minimum {BookRecommenderService.__MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like " +\
+                        f"{BookRecommenderService.__MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
+                return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
+            if self.lightfm_service.is_user_added(user_id) == False:
+                return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
 
-        self.lightfm_service.add_user_embeddings_if_feature_mismatch()
+        # in some cases, user embeddings are discarded, therefore, add them
+        with BookRecommenderService.__LOCK.gen_wlock():
+            self.lightfm_service.add_user_embeddings_if_feature_mismatch()
 
-        y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
-            positive_book_ratings)
-        user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
-            user_id)
-        model = self.lightfm_repository.get_model()
-        item_features = self.item_features_repository.get_item_features()
-        precision = self.__compute_user_precision(
-            model, len(positive_book_ratings), y, item_features=item_features, user_features=user_feature)
+        with BookRecommenderService.__LOCK.gen_rlock():
+            y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
+                positive_book_ratings)
+            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+                user_id)
+            model = self.lightfm_repository.get_model()
+            item_features = self.item_features_repository.get_item_features()
+            precision = self.__compute_user_precision(
+                model, len(positive_book_ratings), y, item_features=item_features, user_features=user_feature)
         if precision < BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
             return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
         if precision < BookRecommenderService.__MAX_PRECISION:
@@ -182,22 +192,22 @@ class BookRecommenderService:
         Returns:
             None.
         """
+        with BookRecommenderService.__LOCK.gen_wlock():
+            BookRecommenderService.__curent_user_training_id = user_id
 
-        BookRecommenderService.__curent_user_training_id = user_id
+            self.lightfm_service.add_new_users(user_id)
+            self.lightfm_service.reset_user_gradients(user_id)
 
-        self.lightfm_service.add_new_users(user_id)
-        self.lightfm_service.reset_user_gradients(user_id)
+            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+                user_id)
+            item_features = self.item_features_repository.get_item_features()
 
-        user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
-            user_id)
-        item_features = self.item_features_repository.get_item_features()
+            single_user_model = self.lightfm_repository.new_model_with_single_user(
+                user_feature, self.lightfm_repository.get_model())
 
-        single_user_model = self.lightfm_repository.new_model_with_single_user(
-            user_feature, self.lightfm_repository.get_model())
-
-        positive_book_ratings = self.user_repository.find_liked_books(user_id)
-        y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
-            positive_book_ratings)
+            positive_book_ratings = self.user_repository.find_liked_books(user_id)
+            y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
+                positive_book_ratings)
 
         thread_args = (single_user_model,
                         len(positive_book_ratings),
@@ -293,15 +303,17 @@ class BookRecommenderService:
             if precision >= BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
                 break
 
-        BookRecommenderService.__curent_user_training_id = -1
+        with BookRecommenderService.__LOCK.gen_wlock():
+            BookRecommenderService.__curent_user_training_id = -1
         BookRecommenderService.__event_training_progress_changed.set()
         # wait for progress to be displayed then continue
         BookRecommenderService.__event_training_progress_stop.wait()
         BookRecommenderService.__current_user_training_progress = -1
         BookRecommenderService.__event_training_progress_stop.clear()
 
-        base_model = self.lightfm_repository.get_model()
-        LightfmRepository.transfer_data_from_new_model_to_model(
-            model, base_model, user_feature)
-        self.nearest_neighbors_service.refit_neighbors()
-        self.lightfm_repository.save_model()
+        with BookRecommenderService.__LOCK.gen_wlock():
+            base_model = self.lightfm_repository.get_model()
+            LightfmRepository.transfer_data_from_new_model_to_model(
+                model, base_model, user_feature)
+            self.nearest_neighbors_service.refit_neighbors()
+            self.lightfm_repository.save_model()
