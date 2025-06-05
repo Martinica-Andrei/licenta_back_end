@@ -122,14 +122,7 @@ class BookRecommenderService:
         Returns:
             list[GetBookDto].
         """
-        with BookRecommenderService.__LOCK.gen_rlock():
-            item_features = self.item_features_repository.get_item_features()
-            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
-                id)
-            book_indices = self.__get_all_book_indices_not_rated(id)
-            model = self.lightfm_repository.get_model()
-            predictions = model.predict(
-                0, book_indices, item_features=item_features, user_features=user_feature)
+        predictions, book_indices = self.__predict_single_user(id)
         indices_sorted = np.argsort(-predictions)
         top_book_indices = book_indices[indices_sorted[:100]]
         predicted_books = self.book_repository.find_by_ids_with_categories_authors_rating(
@@ -238,7 +231,9 @@ class BookRecommenderService:
         while BookRecommenderService.__curent_user_training_id != -1:
             BookRecommenderService.__event_training_progress_changed.wait()
             v = {'percentage': BookRecommenderService.__current_user_training_progress}
-            yield json.dumps(v) + '\n'
+            res = json.dumps(v) + '\n'
+            yield res
+            print(res)
             BookRecommenderService.__event_training_progress_changed.clear()
         BookRecommenderService.__event_training_progress_stop.set()
 
@@ -365,3 +360,14 @@ class BookRecommenderService:
             return TrainingStatusDto(TrainingStatus.CAN_TRAIN, "")
         else:
             return TrainingStatusDto(TrainingStatus.ALREADY_TRAINED, "")
+        
+    def __predict_single_user(self, user_id):
+        with BookRecommenderService.__LOCK.gen_rlock():
+            item_features = self.item_features_repository.get_item_features()
+            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+                user_id)
+            book_indices = self.__get_all_book_indices_not_rated(user_id)
+            model = self.lightfm_repository.get_model()
+            predictions = model.predict(
+                0, book_indices, item_features=item_features, user_features=user_feature)
+        return predictions, book_indices

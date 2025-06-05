@@ -6,7 +6,7 @@ from services.book_recommender_service import BookRecommenderService
 from .api import api_blueprint
 
 blueprint = Blueprint('user_book_recommendations', __name__,
-                             url_prefix='/user_book_recommendations')
+                      url_prefix='/user_book_recommendations')
 api_blueprint.register_blueprint(blueprint)
 
 
@@ -27,7 +27,9 @@ def recommendations():
         current_user.id)
     if validation_dto.training_status in [TrainingStatus.MUST_TRAIN, TrainingStatus.CANNOT_TRAIN]:
         json = validation_dto.to_json()
-        return jsonify(json)
+        res = jsonify(json)
+        res.status_code = 400
+        return res
     dtos = book_recommender_service.get_recommendations_by_user(
         current_user.id)
     list_with_json = [dto.to_json() for dto in dtos]
@@ -40,15 +42,17 @@ def train_logged_in_user():
     book_recommender_service = BookRecommenderService(db.session)
     validation_dto = book_recommender_service.validate_can_train(
         current_user.id)
-    
-    if validation_dto.training_status in [TrainingStatus.CANNOT_TRAIN, 
-                                          TrainingStatus.CURRENTLY_TRAINING_OTHER_USER, 
+
+    if validation_dto.training_status in [TrainingStatus.CANNOT_TRAIN,
+                                          TrainingStatus.CURRENTLY_TRAINING_OTHER_USER,
                                           TrainingStatus.ALREADY_TRAINED]:
         json = validation_dto.to_json()
-        return jsonify(json)
-    
+        res = jsonify(json)
+        res.status_code = 400
+        return res
+
     if validation_dto.training_status == TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER:
         return book_recommender_service.get_training_progress(), {'content_type': 'Application/json'}
- 
+
     book_recommender_service.train_on_single_user(current_user.id)
     return book_recommender_service.get_training_progress(), {'content_type': 'Application/json'}
