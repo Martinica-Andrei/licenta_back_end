@@ -43,6 +43,7 @@ class BookRecommenderService:
     __curent_user_training_id: int = -1
     __current_user_training_progress: int = -1
     __event_training_progress_changed = Event()
+    __event_training_progress_stop = Event()
 
     def __init__(self, scoped_session: scoped_session):
         self.book_repository = BookRepository(scoped_session)
@@ -215,7 +216,7 @@ class BookRecommenderService:
             v = {'percentage': BookRecommenderService.__current_user_training_progress}
             yield json.dumps(v) + '\n'
             BookRecommenderService.__event_training_progress_changed.clear()
-        BookRecommenderService.__event_training_progress_changed.set()
+        BookRecommenderService.__event_training_progress_stop.set()
 
     @staticmethod
     def map_model_to_get_dto(model: Book) -> GetBookDto:
@@ -295,9 +296,9 @@ class BookRecommenderService:
         BookRecommenderService.__curent_user_training_id = -1
         BookRecommenderService.__event_training_progress_changed.set()
         # wait for progress to be displayed then continue
-        BookRecommenderService.__event_training_progress_changed.wait()
+        BookRecommenderService.__event_training_progress_stop.wait()
         BookRecommenderService.__current_user_training_progress = -1
-        BookRecommenderService.__event_training_progress_changed.clear()
+        BookRecommenderService.__event_training_progress_stop.clear()
 
         base_model = self.lightfm_repository.get_model()
         LightfmRepository.transfer_data_from_new_model_to_model(
