@@ -137,9 +137,9 @@ class BookRecommenderService:
         dtos = [self.map_model_to_get_dto(book) for book in predicted_books]
         return dtos
 
-    def validate_training_status(self, user_id: int) -> TrainingStatusDto:
+    def validate_can_train(self, user_id: int) -> TrainingStatusDto:
         """
-        Validates training status for user with `user_id`.
+        Validates if user can train.
 
         Args:
             user_id (id): User id.
@@ -148,39 +148,52 @@ class BookRecommenderService:
             TrainingStatusDto.
         """
         with BookRecommenderService.__LOCK.gen_rlock():
-            if BookRecommenderService.__curent_user_training_id != -1:
-                if BookRecommenderService.__curent_user_training_id == user_id:
-                    return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER, "")
-                else:
-                    return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_OTHER_USER, "Currently training another user. Please wait a few minutes!")
-
-            positive_book_ratings = self.user_repository.find_liked_books(user_id)
-            if len(positive_book_ratings) < BookRecommenderService.__MINIMUM_POSITIVE_RATINGS:
-                message = f"Minimum {BookRecommenderService.__MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like " +\
-                        f"{BookRecommenderService.__MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
-                return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
+            dto = self.__validate_current_user_training(user_id)
+            if dto is not None:
+                return dto
+    
+            positive_book_ratings = self.user_repository.find_liked_books(
+                user_id)
+            
+            dto = self.__validate_minimum_positive_ratings(positive_book_ratings)
+            if dto is not None:
+                return dto
+            
             if self.lightfm_service.is_user_added(user_id) == False:
                 return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
-
+        
         # in some cases, user embeddings are discarded, therefore, add them
         with BookRecommenderService.__LOCK.gen_wlock():
             self.lightfm_service.add_user_embeddings_if_feature_mismatch()
 
+        return self.__validate_precision(user_id, positive_book_ratings)
+
+    def validate_can_get_recommendations(self, user_id: int) -> TrainingStatusDto:
+        """
+        Validates if user can get recommendations.
+
+        Args:
+            user_id (id): User id.
+
+        Returns:
+            TrainingStatusDto.
+        """
         with BookRecommenderService.__LOCK.gen_rlock():
-            y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
-                positive_book_ratings)
-            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+            positive_book_ratings = self.user_repository.find_liked_books(
                 user_id)
-            model = self.lightfm_repository.get_model()
-            item_features = self.item_features_repository.get_item_features()
-            precision = self.__compute_user_precision(
-                model, len(positive_book_ratings), y, item_features=item_features, user_features=user_feature)
-        if precision < BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
-            return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
-        if precision < BookRecommenderService.__MAX_PRECISION:
-            return TrainingStatusDto(TrainingStatus.CAN_TRAIN, "")
-        else:
-            return TrainingStatusDto(TrainingStatus.ALREADY_TRAINED, "")
+            
+            dto = self.__validate_minimum_positive_ratings(positive_book_ratings)
+            if dto is not None:
+                return dto
+            
+            if self.lightfm_service.is_user_added(user_id) == False:
+                return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
+            
+        # in some cases, user embeddings are discarded, therefore, add them
+        with BookRecommenderService.__LOCK.gen_wlock():
+            self.lightfm_service.add_user_embeddings_if_feature_mismatch()
+
+        return self.__validate_precision(user_id, positive_book_ratings)
 
     def train_on_single_user(self, user_id: int) -> None:
         """
@@ -205,15 +218,16 @@ class BookRecommenderService:
             single_user_model = self.lightfm_repository.new_model_with_single_user(
                 user_feature, self.lightfm_repository.get_model())
 
-            positive_book_ratings = self.user_repository.find_liked_books(user_id)
+            positive_book_ratings = self.user_repository.find_liked_books(
+                user_id)
             y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
                 positive_book_ratings)
 
         thread_args = (single_user_model,
-                        len(positive_book_ratings),
-                        y,
-                        item_features,
-                        user_feature)
+                       len(positive_book_ratings),
+                       y,
+                       item_features,
+                       user_feature)
 
         Thread(target=self.__train_on_single_user, args=thread_args).start()
 
@@ -295,8 +309,10 @@ class BookRecommenderService:
                               user_features=user_feature_ones, epochs=200, num_threads=12)
             precision = self.__compute_user_precision(model, nr_positive_ratings,
                                                       y, item_features, user_feature_ones)
-            percentage = round(precision / BookRecommenderService.__BELOW_PRECISION_THRESHOLD, 2)
-            percentage = min(1, percentage) # percentage must take values from 0 to 1 only
+            percentage = round(
+                precision / BookRecommenderService.__BELOW_PRECISION_THRESHOLD, 2)
+            # percentage must take values from 0 to 1 only
+            percentage = min(1, percentage)
             if percentage > max_percentage:
                 BookRecommenderService.__current_user_training_progress = percentage
                 BookRecommenderService.__event_training_progress_changed.set()
@@ -317,3 +333,35 @@ class BookRecommenderService:
                 model, base_model, user_feature)
             self.nearest_neighbors_service.refit_neighbors()
             self.lightfm_repository.save_model()
+
+    def __validate_current_user_training(self, user_id) -> TrainingStatusDto | None:
+        if BookRecommenderService.__curent_user_training_id != -1:
+            if BookRecommenderService.__curent_user_training_id == user_id:
+                return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_LOGGED_IN_USER, "")
+            else:
+                return TrainingStatusDto(TrainingStatus.CURRENTLY_TRAINING_OTHER_USER, "Currently training another user. Please wait a few minutes!")
+        return None
+
+    def __validate_minimum_positive_ratings(self, positive_book_ratings) -> TrainingStatusDto | None:
+        if len(positive_book_ratings) < BookRecommenderService.__MINIMUM_POSITIVE_RATINGS:
+            message = f"Minimum {BookRecommenderService.__MINIMUM_POSITIVE_RATINGS} positive ratings are required for recommendations. Like " +\
+                f"{BookRecommenderService.__MINIMUM_POSITIVE_RATINGS - len(positive_book_ratings)} more books."
+            return TrainingStatusDto(TrainingStatus.CANNOT_TRAIN, message)
+        return None
+
+    def __validate_precision(self, user_id, positive_book_ratings) -> TrainingStatusDto:
+        with BookRecommenderService.__LOCK.gen_rlock():
+            y = self.item_preprocessing_service.convert_positive_book_ratings_to_csr(
+                positive_book_ratings)
+            user_feature = self.user_preprocessing_service.get_transformed_categories_by_user_id_with_unique_feature(
+                user_id)
+            model = self.lightfm_repository.get_model()
+            item_features = self.item_features_repository.get_item_features()
+            precision = self.__compute_user_precision(
+                model, len(positive_book_ratings), y, item_features=item_features, user_features=user_feature)
+        if precision < BookRecommenderService.__BELOW_PRECISION_THRESHOLD:
+            return TrainingStatusDto(TrainingStatus.MUST_TRAIN, "")
+        if precision < BookRecommenderService.__MAX_PRECISION:
+            return TrainingStatusDto(TrainingStatus.CAN_TRAIN, "")
+        else:
+            return TrainingStatusDto(TrainingStatus.ALREADY_TRAINED, "")

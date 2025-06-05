@@ -14,7 +14,7 @@ api_blueprint.register_blueprint(blueprint)
 @login_required
 def training_status():
     book_recommender_service = BookRecommenderService(db.session)
-    dto = book_recommender_service.validate_training_status(current_user.id)
+    dto = book_recommender_service.validate_can_train(current_user.id)
     json = dto.to_json()
     return jsonify(json)
 
@@ -23,9 +23,9 @@ def training_status():
 @login_required
 def recommendations():
     book_recommender_service = BookRecommenderService(db.session)
-    validation_dto = book_recommender_service.validate_training_status(
+    validation_dto = book_recommender_service.validate_can_get_recommendations(
         current_user.id)
-    if validation_dto.training_status == TrainingStatus.MUST_TRAIN:
+    if validation_dto.training_status in [TrainingStatus.MUST_TRAIN, TrainingStatus.CANNOT_TRAIN]:
         json = validation_dto.to_json()
         return jsonify(json)
     dtos = book_recommender_service.get_recommendations_by_user(
@@ -38,7 +38,7 @@ def recommendations():
 @login_required
 def train_logged_in_user():
     book_recommender_service = BookRecommenderService(db.session)
-    validation_dto = book_recommender_service.validate_training_status(
+    validation_dto = book_recommender_service.validate_can_train(
         current_user.id)
     
     if validation_dto.training_status in [TrainingStatus.CANNOT_TRAIN, 
