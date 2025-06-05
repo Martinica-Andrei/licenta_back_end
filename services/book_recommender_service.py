@@ -36,8 +36,8 @@ class BookRecommenderError(Exception):
 
 class BookRecommenderService:
 
-    __MINIMUM_POSITIVE_RATINGS: int = 5
-    __BELOW_PRECISION_THRESHOLD: float = 0.2
+    __MINIMUM_POSITIVE_RATINGS: int = 8
+    __BELOW_PRECISION_THRESHOLD: float = 0.3
     __MAX_PRECISION: float = 0.5
 
     __curent_user_training_id: int = -1
