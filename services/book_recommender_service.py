@@ -233,7 +233,6 @@ class BookRecommenderService:
             v = {'percentage': BookRecommenderService.__current_user_training_progress}
             res = json.dumps(v) + '\n'
             yield res
-            print(res)
             BookRecommenderService.__event_training_progress_changed.clear()
         BookRecommenderService.__event_training_progress_stop.set()
 
